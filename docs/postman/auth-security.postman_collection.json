@@ -1,9 +1,9 @@
 {
   "info": {
     "name": "ae3/auth-security",
-    "description": "Postman Collection do pacote ae3/auth-security — MFA + senha forte + bloqueio de conta. ESQUELETO INICIAL — o desenvolvedor preenche bodies reais, test scripts de captura e exemplos de resposta durante a implementação. Referência: docs/postman/README.md e CONTINUIDADE.md §13 do snapshot de planejamento.",
+    "description": "Collection completa do pacote ae3/auth-security. Cobre MFA (OTP/TOTP), códigos de recuperação, recuperação assistida, políticas de organização e troca de senha.\n\nPré-requisito: configure o ambiente 'ae3-auth-security' e preencha {{access_token}} via login.\n\nFluxo sugerido: 0-Login → 1-Fatores → 2-Challenge → 3-Verify → 4-rotas protegidas.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "_postman_id": "ae3-auth-security-v01-skeleton"
+    "_postman_id": "ae3-auth-security-v1"
   },
   "auth": {
     "type": "bearer",
@@ -12,73 +12,115 @@
     ]
   },
   "variable": [
-    { "key": "base_url", "value": "http://127.0.0.1:8000" }
+    { "key": "base_url", "value": "{{base_url}}" },
+    { "key": "prefix", "value": "{{prefix}}" }
   ],
   "item": [
     {
-      "name": "0. Sandbox auth (fora do pacote)",
-      "description": "Rotas de autenticação da app sandbox que envolvem o pacote. NÃO fazem parte do pacote — são usadas para obter o access_token Sanctum antes de chamar as rotas do pacote.",
+      "name": "0. Sandbox auth",
+      "description": "Rotas de autenticação da app sandbox (fora do pacote). Usadas para obter o access_token Sanctum.",
       "item": [
         {
-          "name": "POST /login (sandbox)",
+          "name": "POST /login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.token) { pm.environment.set('access_token', json.token); }",
+                  "pm.test('Login OK', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "url": { "raw": "{{base_url}}/login", "host": ["{{base_url}}"], "path": ["login"] },
-            "body": { "mode": "raw", "raw": "{\n  \"email\": \"tl@teste.local\",\n  \"password\": \"TestForte!1\"\n}" },
-            "description": "Login Sanctum da app sandbox. O dev deve adicionar test script que captura o token em {{access_token}}."
-          }
-        },
-        {
-          "name": "POST /logout (sandbox)",
-          "request": {
-            "method": "POST",
-            "url": { "raw": "{{base_url}}/logout", "host": ["{{base_url}}"], "path": ["logout"] }
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{sandbox_email}}\",\n  \"password\": \"{{sandbox_password}}\"\n}"
+            }
           }
         }
       ]
     },
     {
-      "name": "1. Login com MFA",
-      "description": "Fluxo da segunda etapa após o login Sanctum. Referência: CONTINUIDADE §13.1 e §13.5.",
+      "name": "1. Fatores MFA",
+      "description": "Cadastro e gestão de fatores MFA do usuário autenticado.",
       "item": [
         {
-          "name": "POST /mfa/factors/{factor_id}/challenge",
+          "name": "GET /mfa/factors — listar confirmados",
           "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/factors/{{factor_id}}/challenge",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "factors", "{{factor_id}}", "challenge"]
-            },
-            "description": "Inicia o desafio do segundo fator. Resposta depende do type do fator: email/sms → envia OTP e devolve masked_identifier; authenticator_app/recovery_code → não envia, devolve apenas instruction. Test script: capturar challenge_id."
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/factors", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "factors"] }
           }
         },
         {
-          "name": "POST /mfa/verify",
+          "name": "POST /mfa/factors — cadastrar e-mail (OTP)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) { pm.environment.set('factor_id', json.data.id); }",
+                  "pm.test('Criado', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/verify",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "verify"]
-            },
-            "body": { "mode": "raw", "raw": "{\n  \"challenge_id\": \"{{challenge_id}}\",\n  \"code\": \"123456\"\n}" },
-            "description": "Valida o código do segundo fator. Sucesso devolve mfa_session_token. Test script: capturar em {{mfa_session_token}}."
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/factors", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "factors"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"email\",\n  \"identifier\": \"{{sandbox_email}}\",\n  \"name\": \"E-mail pessoal\"\n}"
+            }
           }
         },
         {
-          "name": "POST /mfa/challenges/{challenge_id}/resend",
+          "name": "POST /mfa/factors — cadastrar TOTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data) {",
+                  "  pm.environment.set('factor_id', json.data.factor_id);",
+                  "  pm.environment.set('totp_secret', json.data.secret);",
+                  "}",
+                  "pm.test('Criado', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/challenges/{{challenge_id}}/resend",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "challenges", "{{challenge_id}}", "resend"]
-            },
-            "description": "Reenvia OTP. Só faz sentido para email/sms. TOTP/recovery_code → 400 RESEND_NOT_ALLOWED. Limite RN-SEG09: 3 reenvios @ 30s."
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/factors", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "factors"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"type\": \"authenticator_app\",\n  \"holder_name\": \"Usuário Sandbox\",\n  \"name\": \"Meu autenticador\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /mfa/factors/{factor_id}/confirm — confirmar com OTP/TOTP",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/factors/{{factor_id}}/confirm", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "factors", "{{factor_id}}", "confirm"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"123456\"\n}"
+            }
           }
         },
         {
@@ -86,253 +128,243 @@
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/factors/alternatives",
+              "raw": "{{base_url}}/{{prefix}}/mfa/factors/alternatives?exclude_factor_id={{factor_id}}",
               "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "factors", "alternatives"]
-            },
-            "description": "Caminho alternativo (CA-SEG13) — lista outros fatores ativos quando o usuário aciona 'Não tenho mais acesso a este canal'."
-          }
-        }
-      ]
-    },
-    {
-      "name": "2. Gestão de fatores",
-      "description": "CRUD de fatores. Referência: CONTINUIDADE §13.2 e §13.6.",
-      "item": [
-        {
-          "name": "GET /mfa/factors",
-          "request": {
-            "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/factors",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "factors"]
-            },
-            "description": "Lista fatores ativos do usuário. Resource exibe masked_identifier — nunca o valor completo."
-          }
-        },
-        {
-          "name": "POST /mfa/factors (email)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/factors",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "factors"]
-            },
-            "body": { "mode": "raw", "raw": "{\n  \"type\": \"email\",\n  \"identifier\": \"tl@teste.local\",\n  \"name\": \"Meu e-mail\"\n}" },
-            "description": "Cadastra fator de e-mail. Envia OTP de confirmação para o identifier informado. Test script: capturar factor_id_pending e enrollment_challenge_id."
-          }
-        },
-        {
-          "name": "POST /mfa/factors (sms)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/factors",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "factors"]
-            },
-            "body": { "mode": "raw", "raw": "{\n  \"type\": \"sms\",\n  \"identifier\": \"+5511999999999\",\n  \"name\": \"Meu celular\"\n}" }
-          }
-        },
-        {
-          "name": "POST /mfa/factors (authenticator_app)",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/factors",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "factors"]
-            },
-            "body": { "mode": "raw", "raw": "{\n  \"type\": \"authenticator_app\",\n  \"name\": \"iPhone do trabalho\"\n}" },
-            "description": "Cadastra fator TOTP. Resposta inclui qr_code_svg (base64) e secret legível — uma única vez. O usuário lê com app verificador e confirma com o primeiro código."
-          }
-        },
-        {
-          "name": "POST /mfa/factors/{factor_id_pending}/confirm",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/factors/{{factor_id_pending}}/confirm",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "factors", "{{factor_id_pending}}", "confirm"]
-            },
-            "body": { "mode": "raw", "raw": "{\n  \"enrollment_challenge_id\": \"{{enrollment_challenge_id}}\",\n  \"code\": \"123456\"\n}" }
+              "path": ["{{prefix}}", "mfa", "factors", "alternatives"],
+              "query": [{ "key": "exclude_factor_id", "value": "{{factor_id}}" }]
+            }
           }
         },
         {
           "name": "DELETE /mfa/factors/{factor_id}",
           "request": {
             "method": "DELETE",
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/factors/{{factor_id}}",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "factors", "{{factor_id}}"]
-            },
-            "description": "Remove fator. Bloqueia com 409 LAST_FACTOR_REQUIRED se for o último e o perfil exigir (RN-SEG11)."
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/factors/{{factor_id}}", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "factors", "{{factor_id}}"] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Verificação MFA (Challenge → Verify)",
+      "description": "Solicitar e verificar código MFA. O verify retorna mfa_session_token.",
+      "item": [
+        {
+          "name": "POST /mfa/factors/{factor_id}/challenge",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/factors/{{factor_id}}/challenge", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "factors", "{{factor_id}}", "challenge"] }
+          }
+        },
+        {
+          "name": "POST /mfa/factors/{factor_id}/challenge/resend",
+          "request": {
+            "method": "POST",
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/factors/{{factor_id}}/challenge/resend", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "factors", "{{factor_id}}", "challenge", "resend"] }
+          }
+        },
+        {
+          "name": "POST /mfa/verify — verificar código",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.mfa_session_token) {",
+                  "  pm.environment.set('mfa_session_token', json.data.mfa_session_token);",
+                  "}",
+                  "pm.test('MFA verificado', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/verify", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "verify"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"factor_id\": \"{{factor_id}}\",\n  \"factor_type\": \"email\",\n  \"code\": \"123456\"\n}"
+            }
+          }
+        },
+        {
+          "name": "POST /mfa/recovery-codes/verify — usar código de recuperação",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.mfa_session_token) {",
+                  "  pm.environment.set('mfa_session_token', json.data.mfa_session_token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/recovery-codes/verify", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "recovery-codes", "verify"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"code\": \"AAAA-BBBB-CCCC\"\n}"
+            }
           }
         }
       ]
     },
     {
       "name": "3. Códigos de recuperação",
-      "description": "CONTINUIDADE §13.3.",
+      "description": "Metadados e geração de novos códigos. Codes plain-text retornados apenas 1x.",
       "item": [
         {
-          "name": "GET /mfa/recovery-codes",
+          "name": "GET /mfa/recovery-codes — metadados",
           "request": {
             "method": "GET",
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/recovery-codes",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "recovery-codes"]
-            },
-            "description": "Metadados apenas — generation_id, total, remaining, last_generated_at. Nunca os códigos."
+            "header": [{ "key": "X-Mfa-Session-Token", "value": "{{mfa_session_token}}" }],
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/recovery-codes", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "recovery-codes"] }
           }
         },
         {
-          "name": "POST /mfa/recovery-codes (primeira geração)",
+          "name": "POST /mfa/recovery-codes — gerar (primeira vez)",
           "request": {
             "method": "POST",
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/recovery-codes",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "recovery-codes"]
-            },
-            "description": "Primeira geração — sem body. Devolve os 8 códigos uma única vez."
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Mfa-Session-Token", "value": "{{mfa_session_token}}" }],
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/recovery-codes", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "recovery-codes"] },
+            "body": { "mode": "raw", "raw": "{}" }
           }
         },
         {
-          "name": "POST /mfa/recovery-codes (regeneração)",
+          "name": "POST /mfa/recovery-codes — gerar (forçar invalidação)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/recovery-codes",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "recovery-codes"]
-            },
-            "body": { "mode": "raw", "raw": "{\n  \"confirm_invalidation\": true\n}" },
-            "description": "Regenera a lista. Sem confirm_invalidation → 409 INVALIDATION_REQUIRED."
+            "header": [{ "key": "Content-Type", "value": "application/json" }, { "key": "X-Mfa-Session-Token", "value": "{{mfa_session_token}}" }],
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/recovery-codes", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "recovery-codes"] },
+            "body": { "mode": "raw", "raw": "{\n  \"confirm_invalidation\": true\n}" }
           }
         }
       ]
     },
     {
       "name": "4. Recuperação assistida",
-      "description": "CONTINUIDADE §13.4 + RN-SEG12/13/14.",
+      "description": "Fluxo TEC-11: Usuário solicita → Admin libera token → Usuário completa.",
       "item": [
         {
-          "name": "POST /mfa/assisted-recoveries (criar)",
+          "name": "POST /mfa/assisted-recoveries — solicitar (usuário)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.id) { pm.environment.set('recovery_id', json.data.id); }",
+                  "pm.test('Criado', () => pm.response.to.have.status(201));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/assisted-recoveries",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "assisted-recoveries"]
-            },
-            "body": { "mode": "raw", "raw": "{\n  \"target_user_id\": 123,\n  \"reason_category\": \"device_lost\",\n  \"reason_text\": null\n}" },
-            "description": "Admin da organização (ou admin do sistema, se target é admin da org) inicia o pedido. Motivo da lista controlada (RN-SEG12)."
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/assisted-recoveries", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "assisted-recoveries"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"target_user_id\": {{user_id}},\n  \"reason_category\": \"device_lost\",\n  \"reason_text\": \"Perdi meu celular\"\n}"
+            }
           }
         },
         {
-          "name": "POST /mfa/assisted-recoveries/{id}/release",
+          "name": "POST /mfa/assisted-recoveries/{recovery_id}/release — liberar (admin)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data.recovery_token) { pm.environment.set('recovery_token', json.data.recovery_token); }",
+                  "pm.test('Token liberado', () => pm.response.to.have.status(200));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/assisted-recoveries/{{recovery_id}}/release",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "assisted-recoveries", "{{recovery_id}}", "release"]
-            },
-            "body": { "mode": "raw", "raw": "{\n  \"admin_reverification_code\": \"123456\"\n}" },
-            "description": "Após reverificação reforçada do admin (TEC-10), gera token único e dispara link ao usuário."
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/assisted-recoveries/{{recovery_id}}/release", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "assisted-recoveries", "{{recovery_id}}", "release"] }
           }
         },
         {
-          "name": "POST /mfa/assisted-recoveries/complete",
+          "name": "POST /mfa/assisted-recoveries/complete — completar (usuário)",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/assisted-recoveries/complete",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "assisted-recoveries", "complete"]
-            },
-            "body": { "mode": "raw", "raw": "{\n  \"token\": \"<token-do-link-unico>\"\n}" },
-            "description": "Chamada pelo usuário recuperado. Abre sessão temporária com must_register_factor=true (paga TEC-11)."
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/assisted-recoveries/complete", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "assisted-recoveries", "complete"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"token\": \"{{recovery_token}}\"\n}"
+            }
           }
         },
         {
-          "name": "POST /mfa/assisted-recoveries/{id}/refuse",
+          "name": "POST /mfa/assisted-recoveries/{recovery_id}/refuse — recusar (admin)",
           "request": {
             "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/mfa/assisted-recoveries/{{recovery_id}}/refuse",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "mfa", "assisted-recoveries", "{{recovery_id}}", "refuse"]
-            },
-            "body": { "mode": "raw", "raw": "{\n  \"reason_text\": \"Identidade não confirmada — usuário não soube responder as perguntas de verificação.\"\n}" }
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/assisted-recoveries/{{recovery_id}}/refuse", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "assisted-recoveries", "{{recovery_id}}", "refuse"] }
           }
         }
       ]
     },
     {
-      "name": "5. Política da organização",
-      "description": "CONTINUIDADE §13.7 + RN-SEG01.",
+      "name": "5. Políticas de organização",
+      "description": "Gestão de políticas MFA por tenant/role/contexto.",
       "item": [
         {
-          "name": "GET /organization-policies",
+          "name": "GET /organization-policies?tenant_type=&tenant_id=",
           "request": {
             "method": "GET",
             "url": {
-              "raw": "{{base_url}}/v1/auth-security/organization-policies?tenant_id=1",
+              "raw": "{{base_url}}/{{prefix}}/organization-policies?tenant_type=organization&tenant_id=1",
               "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "organization-policies"],
-              "query": [{ "key": "tenant_id", "value": "1" }]
-            },
-            "description": "Matriz perfil × contexto. Cada célula tem source: policy | floor | inherited."
+              "path": ["{{prefix}}", "organization-policies"],
+              "query": [
+                { "key": "tenant_type", "value": "organization" },
+                { "key": "tenant_id", "value": "1" }
+              ]
+            }
           }
         },
         {
-          "name": "PUT /organization-policies",
+          "name": "PUT /organization-policies — criar/atualizar",
           "request": {
             "method": "PUT",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/organization-policies",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "organization-policies"]
-            },
-            "body": { "mode": "raw", "raw": "{\n  \"tenant_id\": 1,\n  \"entries\": [\n    { \"role\": \"administrator\", \"context\": \"web_admin\", \"requires_mfa\": true },\n    { \"role\": \"administrator\", \"context\": \"citizen\", \"requires_mfa\": false },\n    { \"role\": \"fiscal\", \"context\": \"web_admin\", \"requires_mfa\": true }\n  ]\n}" },
-            "description": "Configurar a política. Tentativa de afrouxar abaixo do piso → 422 BELOW_FLOOR com conflicts apontados."
+            "url": { "raw": "{{base_url}}/{{prefix}}/organization-policies", "host": ["{{base_url}}"], "path": ["{{prefix}}", "organization-policies"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"tenant_type\": \"organization\",\n  \"tenant_id\": 1,\n  \"role_type\": \"admin\",\n  \"role_id\": 1,\n  \"requires_mfa\": true,\n  \"context\": null\n}"
+            }
           }
         }
       ]
     },
     {
       "name": "6. Senha",
-      "description": "CONTINUIDADE §13.8 + TEC-03.",
       "item": [
         {
-          "name": "POST /password",
+          "name": "POST /password — alterar senha",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "url": {
-              "raw": "{{base_url}}/v1/auth-security/password",
-              "host": ["{{base_url}}"],
-              "path": ["v1", "auth-security", "password"]
-            },
-            "body": { "mode": "raw", "raw": "{\n  \"current_password\": \"TestForte!1\",\n  \"new_password\": \"NovaForte!2\",\n  \"new_password_confirmation\": \"NovaForte!2\"\n}" },
-            "description": "Altera senha. Violação de política → 422 WEAK_PASSWORD com violations: [min_length | classes_required | in_history | blacklisted]."
+            "url": { "raw": "{{base_url}}/{{prefix}}/password", "host": ["{{base_url}}"], "path": ["{{prefix}}", "password"] },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"new_password\": \"NovaSenhaForte!1\",\n  \"new_password_confirmation\": \"NovaSenhaForte!1\"\n}"
+            }
           }
         }
       ]

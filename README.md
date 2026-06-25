@@ -1,77 +1,494 @@
 # ae3/auth-security
 
-> Pacote Laravel reutilizável para verificação em duas etapas (MFA), política de senha forte e bloqueio de conta por tentativas.
->
-> ⚠️ **Esqueleto inicial** — esta pasta foi criada durante o planejamento e contém apenas a infraestrutura mínima para receber o desenvolvimento. O código do pacote ainda **não foi implementado** — será feito por uma sessão dedicada (Claude Sonnet) seguindo o backlog em `..\giz-seg-001-mfa-2026-06-24\TAREFAS-DESENVOLVIMENTO.md`.
+Pacote Laravel reutilizável que unifica **MFA** (OTP por e-mail/SMS e TOTP), **política de senha forte** e **bloqueio de conta por tentativas**. Projetado para ser consumido via Composer path repository ou Packagist privado.
 
-## Status
+- PHP 8.2+ / Laravel 10–13
+- Stateless API (sem sessão PHP) — token de sessão MFA via header `X-Mfa-Session-Token`
+- Armazenamento em PostgreSQL com schema próprio (`auth_security.*`)
+- Contratos de extensão: `MfaMessageSender`, `MfaAuditLogger`, `MfaTenantResolver`, `MfaRoleResolver`, `MfaContextResolver`
 
-| Componente | Estado |
+---
+
+## Sumário
+
+1. [Instalação](#instalação)
+2. [Publicar artefatos](#publicar-artefatos)
+3. [Configuração](#configuração)
+4. [Bootstrap da aplicação](#bootstrap-da-aplicação)
+5. [Contratos obrigatórios](#contratos-obrigatórios)
+6. [Rotas](#rotas)
+7. [Middlewares](#middlewares)
+8. [Fluxos de uso](#fluxos-de-uso)
+9. [Eventos](#eventos)
+10. [Guia de sandbox](#guia-de-sandbox)
+
+---
+
+## Instalação
+
+```bash
+# Via path repository (GIZ / dev local)
+# Em composer.json da app consumidora:
+# "repositories": [{ "type": "path", "url": "../ae3-auth-security" }]
+
+composer require ae3/auth-security
+```
+
+O pacote registra automaticamente o `AuthSecurityServiceProvider` via auto-discovery.
+
+---
+
+## Publicar artefatos
+
+```bash
+# Configuração
+php artisan vendor:publish --tag=auth-security-config
+
+# Migrations (requer publishesMigrations — Laravel 11+)
+php artisan vendor:publish --tag=auth-security-migrations
+
+# Arquivos de lingua (opcional — sobrescrever traduções)
+php artisan vendor:publish --tag=auth-security-lang
+```
+
+Após publicar as migrations:
+
+```bash
+php artisan migrate
+```
+
+As tabelas são criadas no schema `auth_security` (PostgreSQL) conforme `config('auth-security.schema')`.
+
+---
+
+## Configuração
+
+```php
+// config/auth-security.php (após vendor:publish)
+
+return [
+    'schema' => env('AUTH_SECURITY_SCHEMA', 'auth_security'),
+
+    'user_model' => env('AUTH_SECURITY_USER_MODEL', \App\Models\User::class),
+
+    // Contratos — implementações da app consumidora
+    'tenant_resolver'  => \App\MfaResolvers\TenantResolver::class,
+    'role_resolver'    => \App\MfaResolvers\RoleResolver::class,
+    'context_resolver' => \App\MfaResolvers\ContextResolver::class,
+    'message_sender'   => \App\MfaResolvers\MessageSender::class,
+    'audit_logger'     => \App\MfaResolvers\AuditLogger::class,
+
+    'require_contracts' => true, // false apenas em testes
+
+    'cache' => [
+        'driver'              => null, // null = cache default da app
+        'key_prefix'          => 'auth_security:',
+        'policy_ttl_minutes'  => 5,
+    ],
+
+    'mfa' => [
+        'otp_length'               => 6,
+        'otp_validity_minutes'     => 10,
+        'otp_max_attempts'         => 5,
+        'otp_resend_interval_seconds' => 30,
+        'otp_resend_max_per_hour'  => 5,
+        'session_ttl_hours'        => 8,
+        'recovery_codes_count'     => 10,
+    ],
+
+    'lockout' => [
+        'max_attempts'   => 5,
+        'window_minutes' => 10,
+    ],
+
+    'password_policy' => [
+        'min_length'       => 12,
+        'classes_required' => 3,   // 0-4 (upper, lower, number, special)
+        'history_size'     => 5,   // últimas N senhas não podem ser reutilizadas
+        'expiration_days'  => 90,  // 0 = sem expiração
+    ],
+
+    'floor_policy' => [
+        'roles_required' => [], // papéis que sempre exigem MFA independente de política
+    ],
+
+    'assisted_recovery' => [
+        'token_expires_hours' => 24,
+    ],
+
+    'routes' => [
+        'prefix' => 'auth-security',
+    ],
+];
+```
+
+---
+
+## Bootstrap da aplicação
+
+### 1. Registrar as rotas
+
+Em `routes/api.php`:
+
+```php
+use Ae3\AuthSecurity\AuthSecurityServiceProvider;
+
+AuthSecurityServiceProvider::routes(
+    prefix: 'v1',           // prefixo adicional — rotas ficam em /v1/mfa/*, /v1/organization-policies, etc.
+    middleware: [],         // middlewares extras além de ['api', 'auth:sanctum']
+);
+```
+
+### 2. Registrar os middlewares (opcional — já registrados via alias)
+
+O pacote registra automaticamente os aliases:
+
+| Alias | Classe |
 |---|---|
-| `composer.json` | ⬜ A criar (Fase 1) |
-| `src/` (código PHP) | ⬜ A criar (Fases 2-12) |
-| `database/migrations/` | ⬜ A criar (Fase 2) |
-| `config/auth-security.php` | ⬜ A criar (Fase 1) |
-| `resources/lang/` | ⬜ A criar (Fase 12) |
-| `tests/` (PHPUnit) | ⬜ A criar (Fase 13) |
-| `tests/Fixtures/` (fixtures dos contratos) | ⬜ A criar (Fase 1.9) |
-| `docs/postman/` | 🟡 **Esqueleto presente** (este planejamento) |
-| README completo | ⬜ A escrever (Fase 14) |
-| CHANGELOG | ⬜ A iniciar (Fase 14) |
+| `auth-security.not-locked` | `EnsureAccountNotLocked` |
+| `auth-security.password-not-expired` | `EnsurePasswordNotExpired` |
+| `auth-security.mfa` | `EnsureMfaCompleted` |
+| `auth-security.must-register-factor` | `EnsureMustRegisterFactorCompleted` |
 
-## Para o desenvolvedor que vai implementar
+Exemplo em `bootstrap/app.php` (Laravel 11):
 
-1. Leia o material de planejamento em `..\giz-seg-001-mfa-2026-06-24\`:
-   - `CONTINUIDADE.md` — contexto completo de produto e técnico
-   - `TAREFAS-DESENVOLVIMENTO.md` — backlog em 14 fases
-   - `PROMPT-SONNET.md` — prompt de partida da sessão
-   - `01-SEG-001-protecao-dados/` — feature da GIZ que consome o pacote (RFs/RNs/CAs/HTs)
+```php
+->withMiddleware(function (Middleware $middleware) {
+    $middleware->appendToGroup('api', [
+        \Ae3\AuthSecurity\Http\Middleware\EnsureAccountNotLocked::class,
+        \Ae3\AuthSecurity\Http\Middleware\EnsurePasswordNotExpired::class,
+    ]);
+})
+```
 
-2. Os arquivos de Postman em `docs/postman/` são esqueletos — ajuste-os conforme implementa as rotas, e ao final preencha os exemplos de resposta reais (Fases 12 e 14).
+### 3. Adicionar trait ao modelo de usuário
 
-3. O ponto de entrada da implementação é a **Fase 1 (Setup do pacote)** — siga `laravel-package-development` skill.
+```php
+use Ae3\AuthSecurity\Concerns\HasAuthSecurity;
 
-## Estrutura prevista (após implementação completa)
+class User extends Authenticatable
+{
+    use HasAuthSecurity;
+    // ...
+}
+```
+
+---
+
+## Contratos obrigatórios
+
+A app consumidora deve implementar e configurar os 5 contratos:
+
+### MfaMessageSender
+
+```php
+use Ae3\AuthSecurity\Contracts\MfaMessageSender;
+
+class MyMessageSender implements MfaMessageSender
+{
+    public function sendOtp(string $channel, string $identifier, string $code): void
+    {
+        match ($channel) {
+            'email' => Mail::to($identifier)->send(new OtpMail($code)),
+            'sms'   => SmsService::send($identifier, "Seu código: $code"),
+        };
+    }
+}
+```
+
+### MfaAuditLogger
+
+```php
+use Ae3\AuthSecurity\Contracts\MfaAuditLogger;
+
+class MyAuditLogger implements MfaAuditLogger
+{
+    public function logEvent(string $event, array $payload): void
+    {
+        AuditLog::create(['event' => $event, 'payload' => $payload]);
+    }
+}
+```
+
+### MfaTenantResolver
+
+```php
+use Ae3\AuthSecurity\Contracts\MfaTenantResolver;
+use Ae3\AuthSecurity\Contracts\TenantIdentity;
+
+class MyTenantResolver implements MfaTenantResolver
+{
+    public function tenantOf(Authenticatable $user): ?TenantIdentity
+    {
+        return $user->organization; // deve implementar TenantIdentity
+    }
+}
+```
+
+### MfaRoleResolver
+
+```php
+use Ae3\AuthSecurity\Contracts\MfaRoleResolver;
+
+class MyRoleResolver implements MfaRoleResolver
+{
+    public function rolesOf(Authenticatable $user): array
+    {
+        return $user->roles->pluck('name')->toArray();
+    }
+
+    public function requiresMfa(TenantIdentity $tenant, string $role, ?string $context = null): bool
+    {
+        return app(GetEffectivePolicyAction::class)->execute(
+            $tenant->getTenantType(), $tenant->getTenantKey(),
+            $role, 0, $context,
+        );
+    }
+}
+```
+
+### MfaContextResolver
+
+```php
+use Ae3\AuthSecurity\Contracts\MfaContextResolver;
+
+class MyContextResolver implements MfaContextResolver
+{
+    public function contextOf(Request $request): ?string
+    {
+        return $request->header('X-Access-Context'); // ex: 'web_admin', 'citizen'
+    }
+}
+```
+
+Registre em `config/auth-security.php` ou via `AppServiceProvider`:
+
+```php
+$this->app->singleton(MfaMessageSender::class, MyMessageSender::class);
+// ... demais contratos
+```
+
+---
+
+## Rotas
+
+Todos os endpoints requerem autenticação Sanctum (`auth:sanctum`).
+
+### Fatores MFA
+
+| Método | URI | Ação |
+|---|---|---|
+| `GET` | `{prefix}/mfa/factors` | Listar fatores confirmados do usuário |
+| `POST` | `{prefix}/mfa/factors` | Iniciar cadastro de fator (OTP ou TOTP) |
+| `POST` | `{prefix}/mfa/factors/{factor}/confirm` | Confirmar cadastro de fator com código |
+| `DELETE` | `{prefix}/mfa/factors/{factor}` | Remover fator |
+| `GET` | `{prefix}/mfa/factors/alternatives` | Listar fatores alternativos (para fallback) |
+
+### Verificação MFA
+
+| Método | URI | Ação |
+|---|---|---|
+| `POST` | `{prefix}/mfa/factors/{factor}/challenge` | Solicitar código (OTP) ou instrução (TOTP) |
+| `POST` | `{prefix}/mfa/factors/{factor}/challenge/resend` | Reenviar OTP |
+| `POST` | `{prefix}/mfa/verify` | Verificar código — retorna `X-Mfa-Session-Token` |
+| `POST` | `{prefix}/mfa/recovery-codes/verify` | Verificar código de recuperação |
+
+### Códigos de recuperação
+
+| Método | URI | Ação |
+|---|---|---|
+| `GET` | `{prefix}/mfa/recovery-codes` | Metadados (total/remaining) — nunca os códigos |
+| `POST` | `{prefix}/mfa/recovery-codes` | Gerar nova leva (retorna códigos em texto plano — única vez) |
+
+### Recuperação assistida
+
+| Método | URI | Ação |
+|---|---|---|
+| `POST` | `{prefix}/mfa/assisted-recoveries` | Solicitar recuperação (usuário) |
+| `POST` | `{prefix}/mfa/assisted-recoveries/{recovery}/release` | Liberar token de recuperação (admin) |
+| `POST` | `{prefix}/mfa/assisted-recoveries/complete` | Completar recuperação com token (usuário) |
+| `POST` | `{prefix}/mfa/assisted-recoveries/{recovery}/refuse` | Recusar solicitação (admin) |
+
+### Políticas de organização
+
+| Método | URI | Ação |
+|---|---|---|
+| `GET` | `{prefix}/organization-policies` | Listar políticas de um tenant |
+| `PUT` | `{prefix}/organization-policies` | Criar ou atualizar política |
+
+### Senha
+
+| Método | URI | Ação |
+|---|---|---|
+| `POST` | `{prefix}/password` | Alterar senha com validação de política |
+
+---
+
+## Middlewares
+
+### `auth-security.not-locked`
+
+Retorna `403 ACCOUNT_LOCKED` se a conta estiver bloqueada por tentativas.
+
+### `auth-security.password-not-expired`
+
+Retorna `403 PASSWORD_EXPIRED` se a senha expirou conforme `expiration_days`.
+
+### `auth-security.mfa`
+
+Exige o header `X-Mfa-Session-Token` válido (criado ao verificar MFA). Retorna `403 MFA_REQUIRED` se ausente ou expirado.
+
+### `auth-security.must-register-factor`
+
+Retorna `403 MFA_FACTOR_REGISTRATION_REQUIRED` se `UserState.must_register_factor = true`. Ativado automaticamente após recuperação assistida concluída (TEC-11).
+
+---
+
+## Fluxos de uso
+
+### Fluxo de login com MFA
 
 ```
-ae3-auth-security/
-├── composer.json
-├── README.md
-├── CHANGELOG.md
-├── LICENSE
-├── phpunit.xml
-├── pint.json
-├── src/
-│   ├── AuthSecurityServiceProvider.php
-│   ├── Concerns/HasAuthSecurity.php
-│   ├── Contracts/
-│   │   ├── MfaTenantResolver.php
-│   │   ├── MfaRoleResolver.php
-│   │   ├── MfaContextResolver.php
-│   │   ├── MfaMessageSender.php
-│   │   └── MfaAuditLogger.php
-│   ├── Enums/
-│   ├── Models/
-│   ├── Actions/
-│   ├── Services/
-│   ├── Http/Controllers/
-│   ├── Http/Middleware/
-│   ├── Http/Requests/
-│   ├── Http/Resources/
-│   ├── Listeners/
-│   ├── Events/
-│   └── Exceptions/
-├── database/migrations/
-├── config/auth-security.php
-├── resources/lang/{en,pt-BR}/auth-security.php
-├── routes/api.php
-├── tests/
-│   ├── Fixtures/
-│   ├── Unit/
-│   └── Feature/
-└── docs/
-    └── postman/
-        ├── README.md                                  ← presente (esqueleto)
-        ├── auth-security.postman_collection.json      ← presente (esqueleto)
-        └── auth-security.postman_environment.json     ← presente (esqueleto)
+1. POST /login (app)           → access_token Sanctum
+2. GET  /mfa/factors           → lista fatores disponíveis
+3. POST /mfa/factors/{id}/challenge → dispara OTP ou retorna instrução TOTP
+4. POST /mfa/verify            → verifica código → { mfa_session_token, expires_at }
+5. Requisições protegidas com X-Mfa-Session-Token header
 ```
+
+### Cadastro de fator OTP
+
+```
+1. POST /mfa/factors { type: "email", identifier: "user@email.com" }
+   → factor criado (pending), OTP enviado
+2. POST /mfa/factors/{id}/confirm { code: "123456" }
+   → factor confirmado (confirmed_at preenchido)
+```
+
+### Cadastro de fator TOTP
+
+```
+1. POST /mfa/factors { type: "authenticator_app", holder_name: "Nome" }
+   → { factor_id, secret, otpauth_uri, qr_code_svg }
+   (usuário escaneia QR no app autenticador)
+2. POST /mfa/factors/{id}/confirm { code: "123456" }
+   → factor confirmado
+```
+
+### Recuperação assistida (TEC-11)
+
+```
+Usuário:
+1. POST /mfa/assisted-recoveries { target_user_id, reason_category }
+   → recovery { status: "requested" }
+
+Admin:
+2. POST /mfa/assisted-recoveries/{id}/release
+   → { recovery_token } — entregar ao usuário por canal seguro
+
+Usuário:
+3. POST /mfa/assisted-recoveries/complete { token }
+   → recovery { status: "completed" }
+   → UserState.must_register_factor = true
+   → Próximo login exige cadastro de novo fator antes de acessar recursos
+```
+
+### Geração de códigos de recuperação
+
+```
+1. GET  /mfa/recovery-codes                           → metadados (total/remaining)
+2. POST /mfa/recovery-codes                           → 409 INVALIDATION_REQUIRED (se há ativos)
+3. POST /mfa/recovery-codes { confirm_invalidation: true } → { codes: [...] }
+   (códigos mostrados apenas 1 vez — armazenar com segurança)
+```
+
+---
+
+## Eventos
+
+O pacote dispara 6 eventos que o `DispatchAuditLogListener` encaminha ao `MfaAuditLogger`:
+
+| Evento | Quando |
+|---|---|
+| `MfaFactorEnrolled` | Fator confirmado |
+| `MfaFactorRemoved` | Fator removido |
+| `RecoveryCodesGenerated` | Nova leva de recovery codes gerada |
+| `OtpFailureExceeded` | Tentativas OTP esgotadas |
+| `AssistedRecoveryExecuted` | Recuperação assistida concluída |
+| `PolicyConfigurationAttemptedBelowFloor` | Tentativa de política abaixo do piso bloqueada |
+
+Para observar eventos adicionais, registre listeners na app consumidora normalmente via `EventServiceProvider`.
+
+---
+
+## Guia de sandbox
+
+Para testar localmente com a GIZ (ou qualquer app consumidora):
+
+### 1. Path repository
+
+```json
+// composer.json da app consumidora
+{
+    "repositories": [
+        { "type": "path", "url": "../ae3-auth-security" }
+    ]
+}
+```
+
+```bash
+composer require ae3/auth-security:@dev
+```
+
+### 2. Variáveis de ambiente
+
+```dotenv
+AUTH_SECURITY_SCHEMA=auth_security
+```
+
+### 3. Implementar contratos mínimos (dev)
+
+Crie implementações stub em `app/MfaStubs/` para testes locais:
+
+```php
+// config/auth-security.php
+'message_sender' => \App\MfaStubs\LogMessageSender::class, // loga OTP em laravel.log
+'audit_logger'   => \App\MfaStubs\LogAuditLogger::class,
+```
+
+```php
+// app/MfaStubs/LogMessageSender.php
+class LogMessageSender implements MfaMessageSender {
+    public function sendOtp(string $channel, string $identifier, string $code): void {
+        Log::info("OTP [{$channel}] para {$identifier}: {$code}");
+    }
+}
+```
+
+### 4. Importar a collection Postman
+
+1. Abra o Postman
+2. Importe `docs/postman/auth-security.postman_collection.json`
+3. Importe `docs/postman/auth-security.postman_environment.json`
+4. Configure `base_url` e `access_token` no ambiente
+5. Execute o folder em sequência: Login → Fatores → Challenge → Verify → rotas protegidas
+
+### Respostas de erro padronizadas
+
+Todos os erros retornam `{ message, code, ...extras }`:
+
+| Code | Status | Situação |
+|---|---|---|
+| `INVALID_CODE` | 422 | OTP/TOTP/recovery code inválido ou expirado |
+| `RESEND_RATE_LIMITED` | 429 | Reenvio muito frequente |
+| `WEAK_PASSWORD` | 422 | Senha viola política — `violations[]` |
+| `BELOW_FLOOR` | 422 | Política abaixo do piso — `conflicts[]` |
+| `LAST_FACTOR_REQUIRED` | 409 | Tentativa de remover único fator com MFA obrigatório |
+| `INVALID_STATUS` | 409 | Operação incompatível com status da recuperação |
+| `INVALID_TOKEN` | 422 | Token de recuperação incorreto |
+| `TOKEN_EXPIRED` | 422 | Token de recuperação expirado |
+| `INVALIDATION_REQUIRED` | 409 | Códigos de recuperação ativos — enviar `confirm_invalidation: true` |
+| `ACCOUNT_LOCKED` | 403 | Conta bloqueada por tentativas |
+| `PASSWORD_EXPIRED` | 403 | Senha expirada |
+| `MFA_REQUIRED` | 403 | Sessão MFA ausente ou expirada |
+| `MFA_FACTOR_REGISTRATION_REQUIRED` | 403 | Deve cadastrar novo fator |
