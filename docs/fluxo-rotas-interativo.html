@@ -1,0 +1,921 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Tutorial — ae3/auth-security</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f3f4f6;
+      color: #111827;
+      min-height: 100vh;
+      font-size: 14px;
+    }
+
+    /* ── Layout ── */
+    .shell {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      grid-template-rows: auto 1fr;
+      min-height: 100vh;
+    }
+
+    /* ── Top bar ── */
+    .topbar {
+      grid-column: 1 / -1;
+      background: #111827;
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .topbar-title { color: #fff; font-size: 15px; font-weight: 600; }
+    .topbar-badge {
+      background: #1d4ed8;
+      color: #bfdbfe;
+      font-size: 11px;
+      font-weight: 600;
+      padding: 2px 8px;
+      border-radius: 20px;
+      letter-spacing: .04em;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      background: #1f2937;
+      padding: 24px 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      position: sticky;
+      top: 0;
+      height: calc(100vh - 53px);
+      overflow-y: auto;
+    }
+    .sidebar-section {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: #6b7280;
+      padding: 12px 16px 6px;
+    }
+    .flow-btn {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      background: none;
+      border: none;
+      cursor: pointer;
+      text-align: left;
+      width: 100%;
+      color: #9ca3af;
+      font-size: 13px;
+      font-family: inherit;
+      border-left: 3px solid transparent;
+      transition: all .15s;
+    }
+    .flow-btn:hover { background: #374151; color: #e5e7eb; }
+    .flow-btn.active {
+      background: #1e3a5f;
+      color: #93c5fd;
+      border-left-color: #3b82f6;
+    }
+    .flow-btn .flow-icon {
+      width: 28px; height: 28px;
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 14px;
+      flex-shrink: 0;
+      background: #374151;
+    }
+    .flow-btn.active .flow-icon { background: #1d4ed8; }
+    .flow-btn .flow-label { line-height: 1.3; }
+
+    /* ── Main content ── */
+    .main {
+      padding: 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ── Progress ── */
+    .progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .progress-title { font-size: 18px; font-weight: 700; color: #111827; }
+    .progress-count { font-size: 13px; color: #6b7280; }
+    .progress-bar-wrap {
+      background: #e5e7eb;
+      border-radius: 99px;
+      height: 4px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      background: #2563eb;
+      height: 100%;
+      border-radius: 99px;
+      transition: width .3s ease;
+    }
+
+    /* ── Steps list (sidebar of steps) ── */
+    .steps-row {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .step-dot {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all .15s;
+      border: 2px solid transparent;
+      flex-shrink: 0;
+    }
+    .step-dot.done { background: #dcfce7; color: #15803d; border-color: #86efac; }
+    .step-dot.current { background: #2563eb; color: #fff; }
+    .step-dot.future { background: #f3f4f6; color: #9ca3af; border-color: #e5e7eb; }
+
+    /* ── Step card ── */
+    .step-card {
+      background: #fff;
+      border: 1.5px solid #e5e7eb;
+      border-radius: 12px;
+      overflow: hidden;
+      flex: 1;
+    }
+    .step-card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid #f3f4f6;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .step-num {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: #2563eb;
+      color: #fff;
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+      font-size: 14px;
+      flex-shrink: 0;
+    }
+    .step-card-title { font-size: 16px; font-weight: 700; color: #111827; }
+    .step-card-subtitle { font-size: 12px; color: #6b7280; margin-top: 2px; }
+
+    .step-card-body { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+    /* ── Endpoint block ── */
+    .endpoint {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+    .method {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      padding: 3px 8px;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .method.get    { background: #fef3c7; color: #92400e; }
+    .method.post   { background: #dcfce7; color: #166534; }
+    .method.delete { background: #fee2e2; color: #991b1b; }
+    .method.put    { background: #ede9fe; color: #5b21b6; }
+    .endpoint-path {
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 13px;
+      color: #1e40af;
+      font-weight: 500;
+    }
+
+    /* ── Code block ── */
+    .code-block {
+      background: #1e293b;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px;
+      color: #e2e8f0;
+      line-height: 1.7;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .code-label {
+      font-size: 11px;
+      font-weight: 700;
+      color: #6b7280;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      margin-bottom: 6px;
+    }
+
+    /* ── Info box ── */
+    .info-box {
+      border-radius: 8px;
+      padding: 12px 14px;
+      font-size: 13px;
+      line-height: 1.6;
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+    }
+    .info-box.blue  { background: #eff6ff; border-left: 3px solid #3b82f6; color: #1e40af; }
+    .info-box.green { background: #f0fdf4; border-left: 3px solid #4ade80; color: #166534; }
+    .info-box.amber { background: #fffbeb; border-left: 3px solid #f59e0b; color: #92400e; }
+    .info-box.red   { background: #fef2f2; border-left: 3px solid #f87171; color: #991b1b; }
+    .info-icon { font-size: 16px; flex-shrink: 0; margin-top: 1px; }
+
+    /* ── Response preview ── */
+    .response-preview {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .response-label {
+      background: #f9fafb;
+      padding: 6px 12px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #6b7280;
+      border-bottom: 1px solid #e5e7eb;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .response-status {
+      background: #dcfce7;
+      color: #166534;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+    .response-status.err { background: #fee2e2; color: #991b1b; }
+    .response-body {
+      background: #1e293b;
+      padding: 12px 16px;
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      color: #e2e8f0;
+      line-height: 1.7;
+      white-space: pre;
+      overflow-x: auto;
+    }
+    .key   { color: #7dd3fc; }
+    .str   { color: #86efac; }
+    .num   { color: #fcd34d; }
+    .bool  { color: #f9a8d4; }
+    .null  { color: #94a3b8; }
+
+    /* ── Navigation ── */
+    .nav-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+    .nav-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border: 1.5px solid #e5e7eb;
+      background: #fff;
+      color: #374151;
+      font-family: inherit;
+      transition: all .15s;
+    }
+    .nav-btn:hover { background: #f9fafb; border-color: #d1d5db; }
+    .nav-btn:disabled { opacity: .35; cursor: not-allowed; }
+    .nav-btn.primary {
+      background: #2563eb;
+      color: #fff;
+      border-color: #2563eb;
+    }
+    .nav-btn.primary:hover { background: #1d4ed8; border-color: #1d4ed8; }
+    .nav-btn.success {
+      background: #16a34a;
+      color: #fff;
+      border-color: #16a34a;
+    }
+
+    /* ── Done screen ── */
+    .done-screen {
+      text-align: center;
+      padding: 40px 20px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 16px;
+    }
+    .done-icon {
+      width: 64px; height: 64px;
+      border-radius: 50%;
+      background: #dcfce7;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 28px;
+    }
+    .done-title { font-size: 22px; font-weight: 700; color: #111827; }
+    .done-sub { font-size: 14px; color: #6b7280; max-width: 400px; line-height: 1.6; }
+    .next-flows { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; margin-top: 8px; }
+    .next-flow-btn {
+      padding: 8px 16px;
+      background: #eff6ff;
+      border: 1px solid #bfdbfe;
+      color: #1d4ed8;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: all .15s;
+    }
+    .next-flow-btn:hover { background: #dbeafe; }
+  </style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- ── Topbar ── -->
+  <div class="topbar">
+    <div class="topbar-title">ae3/auth-security</div>
+    <div class="topbar-badge">Tutorial interativo</div>
+  </div>
+
+  <!-- ── Sidebar ── -->
+  <aside class="sidebar">
+    <div class="sidebar-section">Fluxos</div>
+
+    <button class="flow-btn active" onclick="selectFlow(0)">
+      <div class="flow-icon">🔑</div>
+      <div class="flow-label">Login com MFA completo</div>
+    </button>
+    <button class="flow-btn" onclick="selectFlow(1)">
+      <div class="flow-icon">📱</div>
+      <div class="flow-label">Cadastrar TOTP</div>
+    </button>
+    <button class="flow-btn" onclick="selectFlow(2)">
+      <div class="flow-icon">🛡️</div>
+      <div class="flow-label">Recovery code</div>
+    </button>
+    <button class="flow-btn" onclick="selectFlow(3)">
+      <div class="flow-icon">🤝</div>
+      <div class="flow-label">Recuperação assistida</div>
+    </button>
+    <button class="flow-btn" onclick="selectFlow(4)">
+      <div class="flow-icon">🗑️</div>
+      <div class="flow-label">Remover fator (com role)</div>
+    </button>
+  </aside>
+
+  <!-- ── Main ── -->
+  <main class="main" id="main">
+  </main>
+</div>
+
+<script>
+const flows = [
+  {
+    id: 0,
+    title: 'Login com MFA completo',
+    description: 'Do registro ao acesso em rotas protegidas, passo a passo.',
+    steps: [
+      {
+        title: 'Criar conta ou fazer login',
+        subtitle: 'Obtenha o access_token do Sanctum',
+        endpoint: { method: 'post', path: '/api/auth/register' },
+        body: `{
+  "name": "Seu Nome",
+  "email": "voce@email.com",
+  "password": "SuaSenha@123"
+}`,
+        response: {
+          status: 201,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"access_token"</span>: <span class="str">"1|abc..."</span>,
+    <span class="key">"user"</span>: { <span class="key">"id"</span>: <span class="num">1</span>, <span class="key">"name"</span>: <span class="str">"Seu Nome"</span>, ... }
+  }
+}`
+        },
+        info: { type: 'blue', text: 'Guarde o <code>access_token</code>. Ele vai no header <code>Authorization: Bearer {token}</code> de todos os próximos requests.' }
+      },
+      {
+        title: 'Listar contatos disponíveis',
+        subtitle: 'Quais e-mails/telefones o usuário pode usar como fator',
+        endpoint: { method: 'get', path: '/api/auth-security/mfa/contacts' },
+        headers: 'Authorization: Bearer {access_token}',
+        response: {
+          status: 200,
+          body: `{
+  <span class="key">"data"</span>: [
+    {
+      <span class="key">"channel"</span>: <span class="str">"email"</span>,
+      <span class="key">"identifier"</span>: <span class="str">"voce@email.com"</span>,
+      <span class="key">"label"</span>: <span class="str">"E-mail"</span>
+    }
+  ]
+}`
+        },
+        info: { type: 'blue', text: 'Guarde o <code>identifier</code> do contato que vai usar. Ele será o destino do OTP.' }
+      },
+      {
+        title: 'Cadastrar fator OTP (e-mail)',
+        subtitle: 'Inicia o cadastro — envia OTP de confirmação',
+        endpoint: { method: 'post', path: '/api/auth-security/mfa/factors' },
+        headers: 'Authorization: Bearer {access_token}',
+        body: `{
+  "type": "otp_email",
+  "identifier": "voce@email.com",
+  "name": "E-mail pessoal"
+}`,
+        response: {
+          status: 201,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"id"</span>: <span class="num">1</span>,
+    <span class="key">"type"</span>: <span class="str">"otp_email"</span>,
+    <span class="key">"masked_identifier"</span>: <span class="str">"vo**@email.com"</span>,
+    <span class="key">"confirmed_at"</span>: <span class="null">null</span>
+  }
+}`
+        },
+        info: { type: 'amber', text: 'Em sandbox, o OTP não é enviado por e-mail — ele aparece no <code>storage/logs/laravel.log</code>. Guarde o <code>id</code> do fator.' }
+      },
+      {
+        title: 'Confirmar o fator com o OTP',
+        subtitle: 'Digitar o código recebido para ativar o fator',
+        endpoint: { method: 'post', path: '/api/auth-security/mfa/factors/{factor_id}/confirm' },
+        headers: 'Authorization: Bearer {access_token}',
+        body: `{
+  "code": "123456"
+}`,
+        response: {
+          status: 200,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"id"</span>: <span class="num">1</span>,
+    <span class="key">"type"</span>: <span class="str">"otp_email"</span>,
+    <span class="key">"confirmed_at"</span>: <span class="str">"2026-06-25T20:00:00Z"</span>
+  }
+}`
+        },
+        info: { type: 'green', text: 'Fator ativo! O <code>confirmed_at</code> preenchido confirma que está pronto para uso.' }
+      },
+      {
+        title: 'Disparar o desafio MFA',
+        subtitle: 'Solicita o código OTP para verificação de acesso',
+        endpoint: { method: 'post', path: '/api/auth-security/mfa/factors/{factor_id}/challenge' },
+        headers: 'Authorization: Bearer {access_token}',
+        response: {
+          status: 202,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"status"</span>: <span class="str">"sent"</span>
+  }
+}`
+        },
+        info: { type: 'amber', text: 'Em sandbox, o OTP aparece no <code>laravel.log</code>. Precisou reenviar? Use <code>POST .../challenge/resend</code>.' }
+      },
+      {
+        title: 'Verificar o código MFA',
+        subtitle: 'Troca o código pelo mfa_session_token',
+        endpoint: { method: 'post', path: '/api/auth-security/mfa/verify' },
+        headers: 'Authorization: Bearer {access_token}',
+        body: `{
+  "factor_id": 1,
+  "code": "123456"
+}`,
+        response: {
+          status: 200,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"mfa_session_token"</span>: <span class="str">"abc123..."</span>,
+    <span class="key">"expires_at"</span>: <span class="str">"2026-06-25T21:00:00Z"</span>
+  }
+}`
+        },
+        info: { type: 'green', text: 'Guarde o <code>mfa_session_token</code>. Ele vai no header <code>X-Mfa-Session-Token</code> das rotas protegidas.' }
+      },
+      {
+        title: 'Acessar rota protegida',
+        subtitle: 'Os dois headers juntos liberam o acesso',
+        endpoint: { method: 'get', path: '/api/dashboard' },
+        headers: 'Authorization: Bearer {access_token}\nX-Mfa-Session-Token: {mfa_session_token}',
+        response: {
+          status: 200,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"message"</span>: <span class="str">"Acesso liberado — MFA verificado."</span>
+  }
+}`
+        },
+        info: { type: 'green', text: 'Pronto! O middleware <code>auth-security.mfa</code> valida o <code>X-Mfa-Session-Token</code> a cada request.' }
+      }
+    ]
+  },
+
+  {
+    id: 1,
+    title: 'Cadastrar TOTP (app autenticador)',
+    description: 'Cadastre um fator TOTP via Google Authenticator ou Authy.',
+    steps: [
+      {
+        title: 'Iniciar cadastro TOTP',
+        subtitle: 'Gera o secret e o QR code',
+        endpoint: { method: 'post', path: '/api/auth-security/mfa/factors' },
+        headers: 'Authorization: Bearer {access_token}',
+        body: `{
+  "type": "authenticator_app",
+  "holder_name": "Meu celular",
+  "name": "Google Authenticator"
+}`,
+        response: {
+          status: 201,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"factor_id"</span>: <span class="num">2</span>,
+    <span class="key">"secret"</span>: <span class="str">"JBSWY3DPEHPK3PXP"</span>,
+    <span class="key">"otpauth_uri"</span>: <span class="str">"otpauth://totp/..."</span>,
+    <span class="key">"qr_code_svg"</span>: <span class="str">"&lt;svg ...&gt;"</span>
+  }
+}`
+        },
+        info: { type: 'blue', text: 'No Postman, clique na aba <strong>Visualize</strong> — o QR code aparece renderizado. Guarde o <code>factor_id</code>.' }
+      },
+      {
+        title: 'Escanear o QR code',
+        subtitle: 'Abrir o app autenticador e escanear',
+        endpoint: null,
+        info: { type: 'amber', text: 'Abra o <strong>Google Authenticator</strong> ou <strong>Authy</strong> → "Adicionar conta" → "Escanear QR code". Após escanear, o app começa a gerar códigos de 6 dígitos que mudam a cada 30 segundos.' }
+      },
+      {
+        title: 'Confirmar com o código do app',
+        subtitle: 'Digitar o código gerado pelo app para ativar o fator',
+        endpoint: { method: 'post', path: '/api/auth-security/mfa/factors/{factor_id}/confirm' },
+        headers: 'Authorization: Bearer {access_token}',
+        body: `{
+  "code": "123456"
+}`,
+        response: {
+          status: 200,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"id"</span>: <span class="num">2</span>,
+    <span class="key">"type"</span>: <span class="str">"authenticator_app"</span>,
+    <span class="key">"confirmed_at"</span>: <span class="str">"2026-06-25T20:00:00Z"</span>
+  }
+}`
+        },
+        info: { type: 'green', text: 'Fator TOTP ativo! No challenge, o pacote vai retornar <code>status: "use_app"</code> — o usuário abre o app e digita o código atual.' }
+      }
+    ]
+  },
+
+  {
+    id: 2,
+    title: 'Recuperação via recovery code',
+    description: 'Quando o usuário perdeu acesso ao fator mas tem um recovery code.',
+    steps: [
+      {
+        title: 'Gerar recovery codes',
+        subtitle: 'Deve ser feito antes de precisar — guarde em local seguro',
+        endpoint: { method: 'post', path: '/api/auth-security/mfa/recovery-codes' },
+        headers: 'Authorization: Bearer {access_token}\nX-Mfa-Session-Token: {mfa_session_token}',
+        body: `{}`,
+        response: {
+          status: 200,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"codes"</span>: [
+      <span class="str">"ABCD-1234-EFGH"</span>,
+      <span class="str">"IJKL-5678-MNOP"</span>
+    ]
+  }
+}`
+        },
+        info: { type: 'red', text: 'Os códigos aparecem <strong>uma única vez</strong>. Armazene em local seguro (gerenciador de senhas). Se já existem códigos ativos, envie <code>"confirm_invalidation": true</code> para substituí-los.' }
+      },
+      {
+        title: 'Usar o recovery code',
+        subtitle: 'Sem acesso ao fator — usar código de recuperação',
+        endpoint: { method: 'post', path: '/api/auth-security/mfa/recovery-codes/verify' },
+        headers: 'Authorization: Bearer {access_token}',
+        body: `{
+  "code": "ABCD-1234-EFGH"
+}`,
+        response: {
+          status: 200,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"mfa_session_token"</span>: <span class="str">"xyz789..."</span>,
+    <span class="key">"expires_at"</span>: <span class="str">"2026-06-25T21:00:00Z"</span>
+  }
+}`
+        },
+        info: { type: 'green', text: 'O recovery code é invalidado após uso — cada código serve uma vez. O <code>mfa_session_token</code> retornado é equivalente ao gerado via challenge.' }
+      }
+    ]
+  },
+
+  {
+    id: 3,
+    title: 'Recuperação assistida (admin)',
+    description: 'Usuário perdeu acesso a todos os fatores e não tem recovery code.',
+    steps: [
+      {
+        title: 'Usuário solicita recuperação',
+        subtitle: 'Abre um pedido para o admin analisar',
+        endpoint: { method: 'post', path: '/api/auth-security/mfa/assisted-recoveries' },
+        headers: 'Authorization: Bearer {access_token}',
+        body: `{
+  "target_user_id": 1,
+  "reason_category": "lost_device"
+}`,
+        response: {
+          status: 201,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"id"</span>: <span class="num">1</span>,
+    <span class="key">"status"</span>: <span class="str">"requested"</span>
+  }
+}`
+        },
+        info: { type: 'blue', text: 'Guarde o <code>id</code> da recuperação. O admin vai receber e analisar o pedido por um canal externo ao sistema.' }
+      },
+      {
+        title: 'Admin libera o token de recuperação',
+        subtitle: 'Aprova o pedido e gera um token único',
+        endpoint: { method: 'post', path: '/api/auth-security/mfa/assisted-recoveries/{recovery_id}/release' },
+        headers: 'Authorization: Bearer {admin_access_token}',
+        response: {
+          status: 200,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"recovery_token"</span>: <span class="str">"tok_abc123..."</span>
+  }
+}`
+        },
+        info: { type: 'amber', text: 'O admin entrega o <code>recovery_token</code> ao usuário <strong>por canal seguro</strong> (telefone, e-mail pessoal, presencialmente) — nunca pelo sistema.' }
+      },
+      {
+        title: 'Usuário completa a recuperação',
+        subtitle: 'Usa o token recebido para liberar o acesso',
+        endpoint: { method: 'post', path: '/api/auth-security/mfa/assisted-recoveries/complete' },
+        headers: 'Authorization: Bearer {access_token}',
+        body: `{
+  "token": "tok_abc123..."
+}`,
+        response: {
+          status: 200,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"status"</span>: <span class="str">"completed"</span>
+  }
+}`
+        },
+        info: { type: 'red', text: 'Após completar, <code>must_register_factor = true</code> é ativado. No próximo login, o middleware <code>auth-security.must-register-factor</code> vai exigir o cadastro de um novo fator antes de liberar o acesso.' }
+      }
+    ]
+  },
+
+  {
+    id: 4,
+    title: 'Remover fator (com role admin)',
+    description: 'Testa o bloqueio de remoção do último fator para usuários admin.',
+    steps: [
+      {
+        title: 'Criar usuário com role admin',
+        subtitle: 'Apenas usuários admin têm restrição de último fator',
+        endpoint: { method: 'post', path: '/api/auth/register' },
+        body: `{
+  "name": "Admin Teste",
+  "email": "admin@test.com",
+  "password": "Admin@12345",
+  "role": "admin"
+}`,
+        response: {
+          status: 201,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"access_token"</span>: <span class="str">"2|xyz..."</span>
+  }
+}`
+        },
+        info: { type: 'blue', text: 'O campo <code>role</code> é lido pelo <code>AppRoleResolver</code>. Valor <code>"admin"</code> ativa a restrição de último fator via <code>requiresMfa()</code>.' }
+      },
+      {
+        title: 'Cadastrar e confirmar um fator',
+        subtitle: 'Admin precisa ter pelo menos um fator',
+        endpoint: { method: 'post', path: '/api/auth-security/mfa/factors' },
+        headers: 'Authorization: Bearer {access_token}',
+        body: `{
+  "type": "otp_email",
+  "identifier": "admin@test.com",
+  "name": "E-mail admin"
+}`,
+        info: { type: 'blue', text: 'Após criar, confirme com <code>POST .../factors/{id}/confirm { "code": "..." }</code> para ativar o fator.' }
+      },
+      {
+        title: 'Tentar remover o último fator',
+        subtitle: 'Deve retornar 409 — bloqueado pela policy de role',
+        endpoint: { method: 'delete', path: '/api/auth-security/mfa/factors/{factor_id}' },
+        headers: 'Authorization: Bearer {access_token}',
+        response: {
+          status: 409,
+          statusType: 'err',
+          body: `{
+  <span class="key">"message"</span>: <span class="str">"Não é possível remover o único fator..."</span>,
+  <span class="key">"code"</span>: <span class="str">"LAST_FACTOR_REQUIRED"</span>
+}`
+        },
+        info: { type: 'green', text: 'O bloqueio funciona! Se o mesmo request fosse feito por um usuário com <code>role: "user"</code>, a remoção seria permitida normalmente.' }
+      }
+    ]
+  }
+];
+
+let currentFlow = 0;
+let currentStep = 0;
+let visitedSteps = new Set([0]);
+
+function selectFlow(flowId) {
+  currentFlow = flowId;
+  currentStep = 0;
+  visitedSteps = new Set([0]);
+  document.querySelectorAll('.flow-btn').forEach((btn, i) => {
+    btn.classList.toggle('active', i === flowId);
+  });
+  render();
+}
+
+function goToStep(step) {
+  const flow = flows[currentFlow];
+  if (step < 0 || step > flow.steps.length) return;
+  currentStep = step;
+  if (step < flow.steps.length) visitedSteps.add(step);
+  render();
+}
+
+function render() {
+  const flow = flows[currentFlow];
+  const isDone = currentStep >= flow.steps.length;
+  const step = isDone ? null : flow.steps[currentStep];
+  const total = flow.steps.length;
+
+  const progressPct = isDone ? 100 : Math.round((currentStep / total) * 100);
+
+  let html = '';
+
+  html += `
+    <div>
+      <div class="progress-header">
+        <div class="progress-title">${flow.title}</div>
+        <div class="progress-count">${isDone ? total : currentStep + 1} / ${total}</div>
+      </div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" style="width: ${progressPct}%"></div>
+      </div>
+    </div>
+
+    <div class="steps-row">
+      ${flow.steps.map((s, i) => {
+        const cls = i < currentStep ? 'done' : i === currentStep ? 'current' : 'future';
+        return `<div class="step-dot ${cls}" onclick="goToStep(${i})" title="${s.title}">${i < currentStep ? '✓' : i + 1}</div>`;
+      }).join('')}
+      ${isDone ? `<div class="step-dot done" style="cursor:default">✓</div>` : ''}
+    </div>
+  `;
+
+  if (isDone) {
+    const nextFlows = flows.filter((f, i) => i !== currentFlow).slice(0, 3);
+    html += `
+      <div class="step-card">
+        <div class="done-screen">
+          <div class="done-icon">✓</div>
+          <div class="done-title">Fluxo concluído!</div>
+          <div class="done-sub">${flow.description}</div>
+          <div class="next-flows">
+            ${nextFlows.map(f => `<button class="next-flow-btn" onclick="selectFlow(${f.id})">→ ${f.title}</button>`).join('')}
+          </div>
+        </div>
+      </div>
+    `;
+  } else {
+    html += `
+      <div class="step-card">
+        <div class="step-card-header">
+          <div class="step-num">${currentStep + 1}</div>
+          <div>
+            <div class="step-card-title">${step.title}</div>
+            <div class="step-card-subtitle">${step.subtitle}</div>
+          </div>
+        </div>
+        <div class="step-card-body">
+    `;
+
+    if (step.endpoint) {
+      html += `
+        <div>
+          <div class="code-label">Endpoint</div>
+          <div class="endpoint">
+            <span class="method ${step.endpoint.method}">${step.endpoint.method.toUpperCase()}</span>
+            <span class="endpoint-path">${step.endpoint.path}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    if (step.headers) {
+      html += `
+        <div>
+          <div class="code-label">Headers</div>
+          <div class="code-block">${step.headers}</div>
+        </div>
+      `;
+    }
+
+    if (step.body) {
+      html += `
+        <div>
+          <div class="code-label">Body (JSON)</div>
+          <div class="code-block">${step.body}</div>
+        </div>
+      `;
+    }
+
+    if (step.response) {
+      const statusCls = step.response.statusType === 'err' ? 'err' : '';
+      html += `
+        <div>
+          <div class="response-preview">
+            <div class="response-label">
+              Resposta esperada
+              <span class="response-status ${statusCls}">${step.response.status}</span>
+            </div>
+            <div class="response-body">${step.response.body}</div>
+          </div>
+        </div>
+      `;
+    }
+
+    if (step.info) {
+      html += `
+        <div class="info-box ${step.info.type}">
+          <div class="info-icon">${{blue:'ℹ', green:'✓', amber:'⚠', red:'⚠'}[step.info.type]}</div>
+          <div>${step.info.text}</div>
+        </div>
+      `;
+    }
+
+    html += `</div></div>`;
+  }
+
+  const isLast = currentStep === total - 1;
+  html += `
+    <div class="nav-row">
+      <button class="nav-btn" onclick="goToStep(${currentStep - 1})" ${currentStep === 0 ? 'disabled' : ''}>
+        ← Anterior
+      </button>
+      ${!isDone ? `
+        <button class="nav-btn ${isLast ? 'success' : 'primary'}" onclick="goToStep(${currentStep + 1})">
+          ${isLast ? '✓ Concluir' : 'Próximo →'}
+        </button>
+      ` : `
+        <button class="nav-btn primary" onclick="goToStep(0)">↺ Recomeçar</button>
+      `}
+    </div>
+  `;
+
+  document.getElementById('main').innerHTML = html;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+render();
+</script>
+</body>
+</html>
