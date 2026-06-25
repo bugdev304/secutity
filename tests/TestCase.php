@@ -26,6 +26,7 @@ abstract class TestCase extends OrchestraTestCase
 
     protected function defineEnvironment($app): void
     {
+        $app['config']->set('app.key', 'base64:'.base64_encode(random_bytes(32)));
         $app['config']->set('auth-security.schema', 'auth_security');
         $app['config']->set('auth-security.require_contracts', false);
         $app['config']->set('database.default', 'testing');

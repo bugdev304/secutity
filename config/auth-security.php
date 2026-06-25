@@ -67,6 +67,7 @@ return [
         'recovery_codes_count' => 8,
         'recovery_code_format' => '4-4-4-alpha',
         'totp_algorithm' => 'sha1',
+        'totp_issuer' => env('APP_NAME', 'App'), // nome exibido no aplicativo autenticador
     ],
 
     /*
