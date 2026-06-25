@@ -114,6 +114,8 @@ class AuthSecurityServiceProvider extends ServiceProvider
 
     private function bootPublishes(): void
     {
+        $this->loadViewsFrom(__DIR__.'/../resources/views', 'auth-security');
+
         $this->publishes([
             __DIR__.'/../config/auth-security.php' => config_path('auth-security.php'),
         ], 'auth-security-config');
@@ -125,6 +127,10 @@ class AuthSecurityServiceProvider extends ServiceProvider
         $this->publishes([
             __DIR__.'/../resources/lang' => $this->app->langPath('vendor/auth-security'),
         ], 'auth-security-lang');
+
+        $this->publishes([
+            __DIR__.'/../resources/views' => resource_path('views/vendor/auth-security'),
+        ], 'auth-security-views');
     }
 
     private function bootEventListeners(): void
