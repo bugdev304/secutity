@@ -19,6 +19,7 @@ return new class extends Migration
             $table->string('identifier')->nullable();      // e-mail/phone snapshot (RN-SEG15); null para TOTP
             $table->text('secret_encrypted')->nullable();  // TOTP seed — cast encrypted; nunca expor
             $table->string('name')->nullable();
+            $table->timestamp('confirmed_at')->nullable(); // null = cadastro pendente de confirmação
             $table->timestamp('last_used_at')->nullable();
             $table->timestamps();
 

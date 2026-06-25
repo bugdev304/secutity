@@ -17,6 +17,7 @@ return new class extends Migration
             $table->string('identifier')->nullable();
             $table->text('secret_encrypted')->nullable();
             $table->string('name')->nullable();
+            $table->timestamp('confirmed_at')->nullable();
             $table->timestamp('last_used_at')->nullable();
             $table->timestamps();
 

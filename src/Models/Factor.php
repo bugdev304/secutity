@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ae3\AuthSecurity\Models;
 
 use Ae3\AuthSecurity\Enums\FactorType;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class Factor extends AuthSecurityModel
@@ -17,6 +18,7 @@ class Factor extends AuthSecurityModel
         'identifier',
         'secret_encrypted',
         'name',
+        'confirmed_at',
         'last_used_at',
     ];
 
@@ -27,8 +29,19 @@ class Factor extends AuthSecurityModel
         return [
             'type' => FactorType::class,
             'secret_encrypted' => 'encrypted',
+            'confirmed_at' => 'datetime',
             'last_used_at' => 'datetime',
         ];
+    }
+
+    public function isConfirmed(): bool
+    {
+        return $this->confirmed_at !== null;
+    }
+
+    public function scopeConfirmed(Builder $query): Builder
+    {
+        return $query->whereNotNull('confirmed_at');
     }
 
     public function user(): BelongsTo

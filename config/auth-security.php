@@ -84,6 +84,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Recuperação assistida (TEC-10)
+    |--------------------------------------------------------------------------
+    */
+
+    'assisted_recovery' => [
+        'token_expires_hours' => 24,
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Política de piso (floor policy)
     |--------------------------------------------------------------------------
     | Define quais papéis da app SEMPRE exigem MFA, independente da política
@@ -101,8 +111,9 @@ return [
     */
 
     'cache' => [
-        'driver' => null, // null = usa o driver default da app
+        'driver' => null,        // null = usa o driver default da app
         'key_prefix' => 'auth_security:',
+        'policy_ttl_minutes' => 5, // TTL do cache de políticas efetivas
     ],
 
 ];

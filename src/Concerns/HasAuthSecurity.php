@@ -55,7 +55,7 @@ trait HasAuthSecurity
 
     public function hasMfaFactor(): bool
     {
-        return $this->mfaFactors()->exists();
+        return $this->mfaFactors()->confirmed()->exists();
     }
 
     public function hasAvailableRecoveryCodes(): bool
