@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Ae3\AuthSecurity\Http\Middleware;
 
-use Ae3\AuthSecurity\Contracts\MfaContextResolver;
 use Ae3\AuthSecurity\Contracts\MfaRoleResolver;
 use Ae3\AuthSecurity\Contracts\MfaTenantResolver;
 use Ae3\AuthSecurity\Services\MfaSessionService;
@@ -19,10 +18,13 @@ class EnsureMfaCompleted
         private readonly MfaSessionService $mfaSessionService,
         private readonly MfaTenantResolver $tenantResolver,
         private readonly MfaRoleResolver $roleResolver,
-        private readonly MfaContextResolver $contextResolver,
     ) {}
 
-    public function handle(Request $request, Closure $next): Response
+    /**
+     * $context vem da definição da rota: middleware('auth-security.mfa:admin').
+     * Quando omitido, qualquer usuário autenticado precisa do token MFA.
+     */
+    public function handle(Request $request, Closure $next, ?string $context = null): Response
     {
         $user = $request->user();
 
@@ -30,7 +32,7 @@ class EnsureMfaCompleted
             return $next($request);
         }
 
-        if (! $this->isMfaRequired($user, $request)) {
+        if (! $this->isMfaRequired($user, $context)) {
             return $next($request);
         }
 
@@ -49,17 +51,16 @@ class EnsureMfaCompleted
         return $next($request);
     }
 
-    private function isMfaRequired(Authenticatable $user, Request $request): bool
+    private function isMfaRequired(Authenticatable $user, ?string $context): bool
     {
         $tenant = $this->tenantResolver->tenantOf($user);
 
-        // Sem tenant resolvido: sem RBAC configurado — exige MFA para todos (comportamento padrão).
+        // Sem tenant resolvido: sem RBAC configurado — exige MFA para todos.
         if ($tenant === null) {
             return true;
         }
 
         $roles = $this->roleResolver->rolesOf($user);
-        $context = $this->contextResolver->contextOf($request);
 
         return collect($roles)->contains(
             fn (string $role) => $this->roleResolver->requiresMfa($tenant, $role, $context)
