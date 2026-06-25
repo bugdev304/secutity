@@ -9,7 +9,6 @@ use Ae3\AuthSecurity\Actions\Mfa\EnrollOtpFactorAction;
 use Ae3\AuthSecurity\Actions\Mfa\EnrollTotpFactorAction;
 use Ae3\AuthSecurity\Actions\Mfa\ListUserFactorsAction;
 use Ae3\AuthSecurity\Actions\Mfa\RemoveFactorAction;
-use Ae3\AuthSecurity\Actions\Policy\GetEffectivePolicyAction;
 use Ae3\AuthSecurity\Contracts\MfaContextResolver;
 use Ae3\AuthSecurity\Contracts\MfaRoleResolver;
 use Ae3\AuthSecurity\Contracts\MfaTenantResolver;
@@ -95,22 +94,17 @@ class FactorController extends Controller
         Request $request,
         Factor $factor,
         RemoveFactorAction $removeFactor,
-        GetEffectivePolicyAction $getPolicy,
         MfaTenantResolver $tenantResolver,
         MfaRoleResolver $roleResolver,
         MfaContextResolver $contextResolver,
     ): JsonResponse {
         $user = $request->user();
-        $tenant = $tenantResolver->resolve($request);
-        $role = $roleResolver->resolve($user, $request);
-        $context = $contextResolver->resolve($request);
+        $tenant = $tenantResolver->tenantOf($user);
+        $roles = $roleResolver->rolesOf($user);
+        $context = $contextResolver->contextOf($request);
 
-        $mfaRequired = $getPolicy->execute(
-            $tenant->type(),
-            $tenant->id(),
-            $role->type(),
-            $role->id(),
-            $context,
+        $mfaRequired = $tenant !== null && collect($roles)->contains(
+            fn (string $role) => $roleResolver->requiresMfa($tenant, $role, $context)
         );
 
         $removeFactor->execute($user, $factor, $mfaRequired);

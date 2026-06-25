@@ -188,10 +188,6 @@ class AuthSecurityServiceProvider extends ServiceProvider
 
     private function bootExceptionRendering(): void
     {
-        if ($this->app->runningInConsole()) {
-            return;
-        }
-
         $this->app->make('Illuminate\Contracts\Debug\ExceptionHandler')
             ->renderable(function (AuthSecurityException $exception, Request $request) {
                 if (! $request->expectsJson()) {
