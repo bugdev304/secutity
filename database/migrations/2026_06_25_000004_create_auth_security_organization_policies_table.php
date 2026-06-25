@@ -12,15 +12,21 @@ return new class extends Migration
     public function up(): void
     {
         $schema = config('auth-security.schema', 'auth_security');
-        $qualifiedTable = "{$schema}.organization_policies";
+        $isPgsql = DB::getDriverName() === 'pgsql';
+        $tablePrefix = ($isPgsql && $schema) ? "{$schema}." : '';
 
-        Schema::create($qualifiedTable, function (Blueprint $table) {
+        // Nome qualificado para as partial unique indexes (sem aspas duplas no SQLite)
+        $qualifiedTable = ($isPgsql && $schema)
+            ? "\"{$schema}\".organization_policies"
+            : 'organization_policies';
+
+        Schema::create("{$tablePrefix}organization_policies", function (Blueprint $table): void {
             $table->id();
-            $table->string('tenant_type');         // classe do tenant (ex.: App\Models\Company)
+            $table->string('tenant_type');
             $table->unsignedBigInteger('tenant_id');
-            $table->string('role_type');           // identificador do papel
+            $table->string('role_type');
             $table->unsignedBigInteger('role_id');
-            $table->string('context')->nullable(); // ex.: 'web_admin', 'citizen'; null = qualquer contexto
+            $table->string('context')->nullable();
             $table->boolean('requires_mfa');
             $table->unsignedBigInteger('updated_by_user_id')->nullable();
             $table->timestamps();
@@ -28,17 +34,17 @@ return new class extends Migration
             $table->index(['tenant_type', 'tenant_id']);
         });
 
-        // Unicidade com context nullable: duas partial unique indexes garantem semântica correta no PostgreSQL.
-        // NULLS em unique index padrão são tratados como distintos (NULL != NULL), permitindo duplicatas indesejadas.
+        // Duas partial unique indexes garantem unicidade mesmo com context nullable.
+        // SQLite também suporta partial indexes (WHERE clause).
         DB::statement(
             "CREATE UNIQUE INDEX org_policies_non_null_ctx_unique
-             ON \"{$schema}\".organization_policies (tenant_type, tenant_id, role_type, role_id, context)
+             ON {$qualifiedTable} (tenant_type, tenant_id, role_type, role_id, context)
              WHERE context IS NOT NULL"
         );
 
         DB::statement(
             "CREATE UNIQUE INDEX org_policies_null_ctx_unique
-             ON \"{$schema}\".organization_policies (tenant_type, tenant_id, role_type, role_id)
+             ON {$qualifiedTable} (tenant_type, tenant_id, role_type, role_id)
              WHERE context IS NULL"
         );
     }
@@ -46,6 +52,9 @@ return new class extends Migration
     public function down(): void
     {
         $schema = config('auth-security.schema', 'auth_security');
-        Schema::dropIfExists("{$schema}.organization_policies");
+        $isPgsql = DB::getDriverName() === 'pgsql';
+        $tablePrefix = ($isPgsql && $schema) ? "{$schema}." : '';
+
+        Schema::dropIfExists("{$tablePrefix}organization_policies");
     }
 };
