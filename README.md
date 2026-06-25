@@ -452,6 +452,70 @@ Para observar eventos adicionais, registre listeners na app consumidora normalme
 
 ---
 
+## Responsabilidades da app consumidora
+
+O pacote cuida do ciclo de vida dos fatores, OTP, TOTP, recovery e políticas. As responsabilidades abaixo ficam fora do escopo do pacote e devem ser implementadas na app.
+
+### Mascaramento do identifier
+
+O `FactorResource` já retorna `masked_identifier` (nunca o valor cru): e-mails mostram os 2 primeiros caracteres (`wo****@company.com`), telefones mostram os 4 últimos (`*******9999`). **Não exponha `identifier` diretamente** — use sempre o campo mascarado do Resource.
+
+### Invalidar fator quando o contato muda no perfil
+
+O `identifier` de cada fator é gravado no momento do enrollment e não é atualizado automaticamente quando o usuário altera e-mail ou telefone no perfil. Se o contato mudar, o OTP continuará sendo enviado para o endereço antigo.
+
+A app deve observar mudanças nos campos de contato do `User` e remover os fatores correspondentes, forçando re-enrollment:
+
+```php
+// app/Observers/UserObserver.php
+class UserObserver
+{
+    public function updated(User $user): void
+    {
+        if ($user->wasChanged('email')) {
+            $user->factors()
+                ->where('type', FactorType::OtpEmail->value)
+                ->each(fn (Factor $factor) => app(RemoveFactorAction::class)->execute(
+                    $user, $factor, mfaRequired: false,
+                ));
+        }
+
+        if ($user->wasChanged('phone')) {
+            $user->factors()
+                ->where('type', FactorType::OtpSms->value)
+                ->each(fn (Factor $factor) => app(RemoveFactorAction::class)->execute(
+                    $user, $factor, mfaRequired: false,
+                ));
+        }
+    }
+}
+```
+
+> O `RemoveFactorAction` com `mfaRequired: false` remove o fator sem verificar se é o último — adequado para remoção administrativa. Se a app exige que o usuário sempre tenha pelo menos um fator, adicione a lógica de guarda antes de remover.
+
+### Sugerir contato na tela de enrollment
+
+O pacote não tem acesso ao perfil do usuário da app, então não sugere qual e-mail ou telefone usar no enrollment. É responsabilidade do **frontend** montar essa lista a partir dos dados do perfil e passar o `identifier` escolhido no `POST /mfa/factors`.
+
+Exemplo de fluxo recomendado:
+
+```
+1. Frontend consulta o perfil do usuário (endpoint da app)
+   → retorna { email: "pablo@...", phones: ["+5511...", "+5521..."] }
+
+2. Frontend exibe seletor: "Para qual contato enviar o código?"
+
+3. Usuário escolhe → frontend envia:
+   POST /auth-security/mfa/factors
+   { "type": "otp_sms", "identifier": "+5511...", "name": "Celular pessoal" }
+
+4. Pacote envia OTP para o identifier informado e cria o fator pendente
+```
+
+O campo `name` (livre) permite que o usuário identifique cada fator na listagem — útil quando tem múltiplos do mesmo tipo.
+
+---
+
 ## Guia de sandbox
 
 Para testar localmente com a GIZ (ou qualquer app consumidora):
