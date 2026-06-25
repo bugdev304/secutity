@@ -1,0 +1,421 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Fluxo de rotas — ae3/auth-security</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: #f8f8f8;
+      color: #1a1a1a;
+      padding: 32px 24px;
+      font-size: 13px;
+    }
+
+    h1 {
+      font-size: 18px;
+      font-weight: 700;
+      margin-bottom: 4px;
+      color: #111;
+    }
+    .subtitle {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 32px;
+    }
+
+    /* ── Step labels ─────────────────────────────────── */
+    .step-label {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 14px;
+    }
+    .step-circle {
+      width: 26px; height: 26px;
+      border-radius: 50%;
+      background: #111;
+      color: #fff;
+      font-size: 13px;
+      font-weight: 700;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .step-title {
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: #555;
+    }
+
+    /* ── Cards ───────────────────────────────────────── */
+    .card {
+      background: #fff;
+      border: 1.5px solid #e5e5e5;
+      border-radius: 10px;
+      padding: 14px 16px;
+    }
+    .card .method {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .04em;
+      margin-bottom: 6px;
+    }
+    .method.post { background: #22c55e; color: #fff; }
+    .method.get  { background: #f59e0b; color: #fff; }
+    .method.delete { background: #ef4444; color: #fff; }
+    .method.put  { background: #8b5cf6; color: #fff; }
+
+    .card .path {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      font-size: 12px;
+      font-weight: 600;
+      color: #111;
+      margin-bottom: 4px;
+    }
+    .card .desc {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 8px;
+    }
+    .card .returns {
+      font-size: 11px;
+      color: #444;
+      border-top: 1px solid #f0f0f0;
+      padding-top: 8px;
+    }
+    .card .returns code {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      background: #f4f4f5;
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+    .card .hint {
+      font-size: 10px;
+      color: #999;
+      margin-top: 6px;
+      font-style: italic;
+    }
+
+    /* ── Auth bar ─────────────────────────────────────── */
+    .auth-bar {
+      background: #111;
+      color: #fff;
+      border-radius: 8px;
+      padding: 12px 18px;
+      text-align: center;
+      margin: 16px 0;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .auth-bar span {
+      font-family: 'SF Mono', 'Fira Code', monospace;
+      color: #86efac;
+    }
+    .auth-bar .sub {
+      font-size: 10px;
+      font-weight: 400;
+      color: #aaa;
+      margin-top: 2px;
+    }
+
+    /* ── Two-column grid ──────────────────────────────── */
+    .two-col {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      align-items: start;
+      gap: 0 12px;
+    }
+    .or-divider {
+      display: flex;
+      align-items: flex-start;
+      padding-top: 48px;
+      font-size: 11px;
+      font-weight: 700;
+      color: #999;
+      text-transform: uppercase;
+    }
+
+    /* ── Fork ─────────────────────────────────────────── */
+    .fork {
+      display: grid;
+      grid-template-columns: 1fr auto 1fr;
+      gap: 0 16px;
+      align-items: start;
+    }
+    .fork-decision {
+      border: 2px dashed #f59e0b;
+      border-radius: 8px;
+      padding: 10px 16px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 13px;
+      color: #92400e;
+      background: #fffbeb;
+      margin-bottom: 16px;
+    }
+    .fork-label {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      padding: 4px 10px;
+      border-radius: 20px;
+      display: inline-block;
+      margin-bottom: 12px;
+    }
+    .fork-label.no  { background: #fef3c7; color: #92400e; }
+    .fork-label.yes { background: #d1fae5; color: #065f46; }
+
+    .fork-col { display: flex; flex-direction: column; gap: 0; }
+    .fork-separator {
+      width: 1px;
+      background: #e5e5e5;
+      margin-top: 40px;
+    }
+
+    /* ── Arrow ────────────────────────────────────────── */
+    .arrow {
+      text-align: center;
+      color: #bbb;
+      font-size: 18px;
+      line-height: 1;
+      padding: 6px 0;
+    }
+    .arrow-note {
+      font-size: 10px;
+      color: #aaa;
+      text-align: center;
+      margin-bottom: 4px;
+      font-style: italic;
+    }
+
+    /* ── Token bar ────────────────────────────────────── */
+    .token-bar {
+      background: #111;
+      color: #fff;
+      border-radius: 8px;
+      padding: 12px 18px;
+      text-align: center;
+      margin: 16px 0;
+      font-size: 13px;
+      font-weight: 600;
+    }
+    .token-bar span { font-family: monospace; color: #c4b5fd; }
+    .token-bar .sub { font-size: 10px; color: #aaa; margin-top: 2px; font-weight: 400; }
+
+    /* ── Access card ──────────────────────────────────── */
+    .access-card {
+      background: #f0fdf4;
+      border: 2px solid #4ade80;
+      border-radius: 10px;
+      padding: 14px 18px;
+      text-align: center;
+    }
+    .access-card .icon { font-size: 22px; margin-bottom: 4px; }
+    .access-card .label { font-weight: 700; font-size: 14px; color: #15803d; }
+    .access-card .sub { font-size: 11px; color: #16a34a; margin-top: 4px; }
+
+    /* ── Section separator ────────────────────────────── */
+    hr {
+      border: none;
+      border-top: 1px solid #e5e5e5;
+      margin: 32px 0;
+    }
+
+    .section { margin-bottom: 28px; }
+
+    .inline-note {
+      font-size: 10px;
+      color: #aaa;
+      text-align: center;
+      padding: 4px 0;
+      font-style: italic;
+    }
+
+    .col-header {
+      text-align: center;
+      margin-bottom: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<h1>Fluxo de rotas — ae3/auth-security</h1>
+<p class="subtitle">Referência visual passo a passo. Siga a ordem de cima para baixo.</p>
+
+<!-- ── STEP 1: Auth ─────────────────────────────────── -->
+<div class="section">
+  <div class="step-label">
+    <div class="step-circle">1</div>
+    <div class="step-title">Autenticação (sem token)</div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div class="method post">POST</div>
+      <div class="path">/api/auth/register</div>
+      <div class="desc">Cria conta + retorna token</div>
+      <div class="returns">→ RETORNA <code>access_token</code> + <code>user</code></div>
+    </div>
+
+    <div class="or-divider">ou</div>
+
+    <div class="card">
+      <div class="method post">POST</div>
+      <div class="path">/api/auth/login</div>
+      <div class="desc">email + password</div>
+      <div class="returns">→ RETORNA <code>access_token</code> + <code>mfa_enrolled</code></div>
+    </div>
+  </div>
+</div>
+
+<div class="auth-bar">
+  Authorization: Bearer <span>{access_token}</span>
+  <div class="sub">Use este header em todos os requests seguintes</div>
+</div>
+
+<!-- ── STEP 2: mfa_enrolled fork ───────────────────── -->
+<div class="section">
+  <div class="step-label">
+    <div class="step-circle">2</div>
+    <div class="step-title">Verificar se tem fator cadastrado</div>
+  </div>
+
+  <div class="fork-decision">mfa_enrolled = true?</div>
+
+  <div class="fork">
+    <!-- NÃO: cadastrar fator -->
+    <div class="fork-col">
+      <div class="col-header">
+        <span class="fork-label no">NÃO — Cadastrar fator</span>
+      </div>
+
+      <div class="card">
+        <div class="method get">GET</div>
+        <div class="path">/api/auth-security/mfa/contacts</div>
+        <div class="desc">Lista e-mails/telefones disponíveis</div>
+        <div class="returns">→ RETORNA <code>[{ channel, identifier, label }]</code></div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="card">
+        <div class="method post">POST</div>
+        <div class="path">/api/auth-security/mfa/factors</div>
+        <div class="desc"><code>{ type, identifier, name }</code><br>type: <code>otp_email</code> | <code>otp_sms</code> | <code>authenticator_app</code></div>
+        <div class="returns">→ RETORNA <code>factor_id</code> (pendente)</div>
+        <div class="hint">OTP cai no laravel.log (sandbox)</div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="card">
+        <div class="method post">POST</div>
+        <div class="path">/api/auth-security/mfa/factors/{id}/confirm</div>
+        <div class="desc"><code>{ code: "123456" }</code></div>
+        <div class="returns">→ Fator ativo — <code>confirmed_at</code> preenchido</div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="inline-note">Fator cadastrado — agora siga o caminho "SIM" abaixo</div>
+    </div>
+
+    <div class="fork-separator"></div>
+
+    <!-- SIM: verificar MFA -->
+    <div class="fork-col">
+      <div class="col-header">
+        <span class="fork-label yes">SIM — Verificar MFA</span>
+      </div>
+
+      <div class="card">
+        <div class="method get">GET</div>
+        <div class="path">/api/auth-security/mfa/factors</div>
+        <div class="desc">Lista fatores confirmados do usuário</div>
+        <div class="returns">→ RETORNA <code>[{ id, type, masked_identifier }]</code></div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="card">
+        <div class="method post">POST</div>
+        <div class="path">/api/auth-security/mfa/factors/{id}/challenge</div>
+        <div class="desc">Dispara OTP ou instrui abrir app TOTP</div>
+        <div class="returns">→ CÓDIGO ENVIADO (OTP) ou instrução (TOTP)</div>
+        <div class="hint">Reenviar: POST .../challenge/resend</div>
+      </div>
+
+      <div class="arrow">↓</div>
+
+      <div class="card">
+        <div class="method post">POST</div>
+        <div class="path">/api/auth-security/mfa/verify</div>
+        <div class="desc"><code>{ factor_id, code }</code></div>
+        <div class="returns">→ RETORNA <code>mfa_session_token</code> + <code>expires_at</code></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="token-bar">
+  X-Mfa-Session-Token: <span>{mfa_session_token}</span>
+  <div class="sub">Adicionar este header nas rotas protegidas por MFA</div>
+</div>
+
+<!-- ── STEP 3: Acesso protegido ─────────────────────── -->
+<div class="section">
+  <div class="step-label">
+    <div class="step-circle">3</div>
+    <div class="step-title">Acesso a rotas protegidas</div>
+  </div>
+
+  <div class="access-card">
+    <div class="icon">✓</div>
+    <div class="label">Acesso liberado</div>
+    <div class="sub">Authorization: Bearer {access_token}<br>X-Mfa-Session-Token: {mfa_session_token}</div>
+  </div>
+</div>
+
+<hr>
+
+<!-- ── EXTRA: Recuperação ───────────────────────────── -->
+<div class="section">
+  <div class="step-label">
+    <div class="step-circle" style="background:#6366f1">!</div>
+    <div class="step-title">Sem acesso ao fator? — Opções de recuperação</div>
+  </div>
+
+  <div class="two-col">
+    <div class="card">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6366f1;margin-bottom:10px;">Via recovery code</div>
+      <div class="method post">POST</div>
+      <div class="path">/api/auth-security/mfa/recovery-codes/verify</div>
+      <div class="desc"><code>{ code: "XXXX-XXXX-XXXX" }</code></div>
+      <div class="returns">→ RETORNA <code>mfa_session_token</code><br>Code invalidado após uso</div>
+    </div>
+
+    <div class="or-divider">ou</div>
+
+    <div class="card">
+      <div style="font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#6366f1;margin-bottom:10px;">Via recuperação assistida (admin)</div>
+      <div class="method post">POST</div>
+      <div class="path">/api/auth-security/mfa/assisted-recoveries</div>
+      <div class="desc"><code>{ target_user_id, reason_category }</code></div>
+      <div class="returns">→ Admin libera token → usuário usa POST .../complete</div>
+      <div class="hint">Exige aprovação manual do admin</div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
