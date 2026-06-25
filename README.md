@@ -309,6 +309,7 @@ Todos os endpoints requerem autenticação Sanctum (`auth:sanctum`).
 
 | Método | URI | Ação |
 |---|---|---|
+| `GET` | `{prefix}/mfa/contacts` | Listar contatos disponíveis para cadastro (requer `MfaContactProvider` no User) |
 | `GET` | `{prefix}/mfa/factors` | Listar fatores confirmados do usuário |
 | `POST` | `{prefix}/mfa/factors` | Iniciar cadastro de fator (OTP ou TOTP) |
 | `POST` | `{prefix}/mfa/factors/{factor}/confirm` | Confirmar cadastro de fator com código |
@@ -493,26 +494,51 @@ class UserObserver
 
 > O `RemoveFactorAction` com `mfaRequired: false` remove o fator sem verificar se é o último — adequado para remoção administrativa. Se a app exige que o usuário sempre tenha pelo menos um fator, adicione a lógica de guarda antes de remover.
 
-### Sugerir contato na tela de enrollment
+### Contatos disponíveis para cadastro de fator
 
-O pacote não tem acesso ao perfil do usuário da app, então não sugere qual e-mail ou telefone usar no enrollment. É responsabilidade do **frontend** montar essa lista a partir dos dados do perfil e passar o `identifier` escolhido no `POST /mfa/factors`.
+O pacote expõe `GET /mfa/contacts` que retorna os contatos do usuário disponíveis para cadastro de fator. Para que a rota retorne dados, o Model do usuário deve implementar `MfaContactProvider`:
 
-Exemplo de fluxo recomendado:
+```php
+use Ae3\AuthSecurity\Contracts\MfaContactProvider;
+use Ae3\AuthSecurity\Data\MfaContact;
+
+class User extends Authenticatable implements MfaContactProvider
+{
+    public function mfaContacts(): array
+    {
+        return [
+            new MfaContact(channel: 'email', identifier: $this->email,         label: 'E-mail principal'),
+            new MfaContact(channel: 'sms',   identifier: $this->phone,         label: 'Celular'),
+            new MfaContact(channel: 'sms',   identifier: $this->backup_phone,  label: 'Celular de backup'),
+        ];
+    }
+}
+```
+
+Resposta da rota:
+
+```json
+{
+  "data": [
+    { "channel": "email", "identifier": "pablo@example.com", "label": "E-mail principal" },
+    { "channel": "sms",   "identifier": "+5511999999999",     "label": "Celular" }
+  ],
+  "meta": {}
+}
+```
+
+Se o User não implementar a interface, a rota retorna `data: []` sem erro. O `identifier` é retornado sem mascaramento — o usuário está autenticado e escolhendo seu próprio contato.
+
+Fluxo recomendado:
 
 ```
-1. Frontend consulta o perfil do usuário (endpoint da app)
-   → retorna { email: "pablo@...", phones: ["+5511...", "+5521..."] }
-
-2. Frontend exibe seletor: "Para qual contato enviar o código?"
-
-3. Usuário escolhe → frontend envia:
-   POST /auth-security/mfa/factors
-   { "type": "otp_sms", "identifier": "+5511...", "name": "Celular pessoal" }
-
-4. Pacote envia OTP para o identifier informado e cria o fator pendente
+1. GET  /mfa/contacts               → lista contatos do usuário
+2. Usuário escolhe qual usar
+3. POST /mfa/factors                → { type, identifier, name }
+4. POST /mfa/factors/{factor}/confirm → { code }
 ```
 
-O campo `name` (livre) permite que o usuário identifique cada fator na listagem — útil quando tem múltiplos do mesmo tipo.
+O campo `name` (livre) permite ao usuário identificar cada fator na listagem — útil quando há múltiplos fatores do mesmo tipo.
 
 ---
 

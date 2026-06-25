@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use Ae3\AuthSecurity\Http\Controllers\AssistedRecoveryController;
 use Ae3\AuthSecurity\Http\Controllers\FactorController;
+use Ae3\AuthSecurity\Http\Controllers\MfaContactController;
 use Ae3\AuthSecurity\Http\Controllers\MfaVerificationController;
 use Ae3\AuthSecurity\Http\Controllers\OrganizationPolicyController;
 use Ae3\AuthSecurity\Http\Controllers\PasswordController;
@@ -13,6 +14,7 @@ use Illuminate\Support\Facades\Route;
 // Gestão de fatores MFA
 Route::prefix('mfa')->group(function (): void {
 
+    Route::get('contacts', [MfaContactController::class, 'index']);
     Route::get('factors', [FactorController::class, 'index']);
     Route::post('factors', [FactorController::class, 'store']);
     Route::post('factors/{factor}/confirm', [FactorController::class, 'confirm']);
