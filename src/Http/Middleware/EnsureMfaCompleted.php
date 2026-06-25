@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Ae3\AuthSecurity\Http\Middleware;
 
+use Ae3\AuthSecurity\Contracts\MfaContextResolver;
+use Ae3\AuthSecurity\Contracts\MfaRoleResolver;
+use Ae3\AuthSecurity\Contracts\MfaTenantResolver;
 use Ae3\AuthSecurity\Services\MfaSessionService;
 use Closure;
+use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -13,6 +17,9 @@ class EnsureMfaCompleted
 {
     public function __construct(
         private readonly MfaSessionService $mfaSessionService,
+        private readonly MfaTenantResolver $tenantResolver,
+        private readonly MfaRoleResolver $roleResolver,
+        private readonly MfaContextResolver $contextResolver,
     ) {}
 
     public function handle(Request $request, Closure $next): Response
@@ -23,22 +30,43 @@ class EnsureMfaCompleted
             return $next($request);
         }
 
+        if (! $this->isMfaRequired($user, $request)) {
+            return $next($request);
+        }
+
         $mfaToken = $request->header('X-Mfa-Session-Token');
 
         if ($mfaToken === null) {
-            return $this->requireMfa();
+            return $this->denyMfa();
         }
 
         $sessionUserId = $this->mfaSessionService->getUserId($mfaToken);
 
         if ($sessionUserId === null || (string) $sessionUserId !== (string) $user->getAuthIdentifier()) {
-            return $this->requireMfa();
+            return $this->denyMfa();
         }
 
         return $next($request);
     }
 
-    private function requireMfa(): Response
+    private function isMfaRequired(Authenticatable $user, Request $request): bool
+    {
+        $tenant = $this->tenantResolver->tenantOf($user);
+
+        // Sem tenant resolvido: sem RBAC configurado — exige MFA para todos (comportamento padrão).
+        if ($tenant === null) {
+            return true;
+        }
+
+        $roles = $this->roleResolver->rolesOf($user);
+        $context = $this->contextResolver->contextOf($request);
+
+        return collect($roles)->contains(
+            fn (string $role) => $this->roleResolver->requiresMfa($tenant, $role, $context)
+        );
+    }
+
+    private function denyMfa(): Response
     {
         return response()->json([
             'message' => __('auth-security::auth-security.mfa_required'),
