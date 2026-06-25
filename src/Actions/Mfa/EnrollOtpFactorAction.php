@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Ae3\AuthSecurity\Actions\Mfa;
 
 use Ae3\AuthSecurity\Contracts\MfaAuditLogger;
+use Ae3\AuthSecurity\Contracts\MfaContactProvider;
 use Ae3\AuthSecurity\Contracts\MfaMessageSender;
+use Ae3\AuthSecurity\Data\MfaContact;
 use Ae3\AuthSecurity\Enums\FactorType;
+use Ae3\AuthSecurity\Exceptions\InvalidFactorIdentifierException;
 use Ae3\AuthSecurity\Models\Factor;
 use Ae3\AuthSecurity\Services\OtpService;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -30,6 +33,19 @@ class EnrollOtpFactorAction
         string $identifier,
         ?string $name = null,
     ): Factor {
+        // Se o User declara seus contatos, o identifier deve ser um deles.
+        // Impede que o usuário cadastre contatos de terceiros e receba OTPs em nome deles.
+        if ($user instanceof MfaContactProvider) {
+            $allowedIdentifiers = array_map(
+                fn (MfaContact $contact) => $contact->identifier,
+                $user->mfaContacts(),
+            );
+
+            if (! in_array($identifier, $allowedIdentifiers, strict: true)) {
+                throw new InvalidFactorIdentifierException;
+            }
+        }
+
         $factor = Factor::create([
             'user_id' => $user->getAuthIdentifier(),
             'type' => $factorType,

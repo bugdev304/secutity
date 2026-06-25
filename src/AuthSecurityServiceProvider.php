@@ -18,6 +18,7 @@ use Ae3\AuthSecurity\Exceptions\AssistedRecoveryExpiredException;
 use Ae3\AuthSecurity\Exceptions\AssistedRecoveryInvalidStatusException;
 use Ae3\AuthSecurity\Exceptions\AssistedRecoveryInvalidTokenException;
 use Ae3\AuthSecurity\Exceptions\AuthSecurityException;
+use Ae3\AuthSecurity\Exceptions\InvalidFactorIdentifierException;
 use Ae3\AuthSecurity\Exceptions\LastFactorRemovalException;
 use Ae3\AuthSecurity\Exceptions\OtpExpiredException;
 use Ae3\AuthSecurity\Exceptions\OtpInvalidException;
@@ -207,6 +208,7 @@ class AuthSecurityServiceProvider extends ServiceProvider
             $exception instanceof RecoveryCodeInvalidException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'INVALID_CODE', []],
             $exception instanceof PasswordPolicyException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'WEAK_PASSWORD', ['violations' => $exception->getViolations()]],
             $exception instanceof PolicyBelowFloorException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'BELOW_FLOOR', ['conflicts' => $exception->getConflicts()]],
+            $exception instanceof InvalidFactorIdentifierException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'INVALID_IDENTIFIER', []],
             $exception instanceof LastFactorRemovalException => [Response::HTTP_CONFLICT, 'LAST_FACTOR_REQUIRED', []],
             $exception instanceof AssistedRecoveryInvalidStatusException => [Response::HTTP_CONFLICT, 'INVALID_STATUS', []],
             $exception instanceof AssistedRecoveryInvalidTokenException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'INVALID_TOKEN', []],
