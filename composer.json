@@ -1,0 +1,44 @@
+{
+    "name": "ae3/auth-security",
+    "description": "Pacote Laravel reutilizável para verificação em duas etapas (MFA), política de senha forte e bloqueio de conta.",
+    "type": "library",
+    "license": "proprietary",
+    "authors": [
+        {
+            "name": "AE3",
+            "email": "dev@ae3.com.br"
+        }
+    ],
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^10.0|^11.0|^12.0|^13.0",
+        "pragmarx/google2fa-qrcode": "^4.0"
+    },
+    "require-dev": {
+        "orchestra/testbench": "^8.0|^9.0",
+        "phpunit/phpunit": "^10.0|^11.0",
+        "laravel/pint": "^1.0"
+    },
+    "autoload": {
+        "psr-4": {
+            "Ae3\\AuthSecurity\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Ae3\\AuthSecurity\\Tests\\": "tests/"
+        }
+    },
+    "extra": {
+        "laravel": {
+            "providers": [
+                "Ae3\\AuthSecurity\\AuthSecurityServiceProvider"
+            ],
+            "aliases": {
+                "AuthSecurity": "Ae3\\AuthSecurity\\Facades\\AuthSecurity"
+            }
+        }
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
