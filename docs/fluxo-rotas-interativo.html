@@ -387,6 +387,10 @@
       <div class="flow-label">Recuperação assistida</div>
     </button>
     <button class="flow-btn" onclick="selectFlow(4)">
+      <div class="flow-icon">🎭</div>
+      <div class="flow-label">MFA por perfil e contexto</div>
+    </button>
+    <button class="flow-btn" onclick="selectFlow(5)">
       <div class="flow-icon">🗑️</div>
       <div class="flow-label">Remover fator (com role)</div>
     </button>
@@ -705,6 +709,92 @@ const flows = [
 
   {
     id: 4,
+    title: 'MFA por perfil e contexto',
+    description: 'Como configurar MFA obrigatório para certos perfis em certos contextos (admin, público, etc.).',
+    steps: [
+      {
+        title: 'Definir contexto na rota (servidor controla)',
+        subtitle: 'O contexto é parâmetro do middleware — não vem do cliente',
+        endpoint: null,
+        body: `// routes/api.php
+
+// Área pública — role "user" e "admin" passam sem MFA
+Route::middleware(['auth:sanctum', 'auth-security.mfa:public'])
+    ->group(function () {
+        Route::get('/dashboard', ...);
+    });
+
+// Área administrativa — "admin" e "manager" exigem MFA
+Route::middleware(['auth:sanctum', 'auth-security.mfa:admin'])
+    ->group(function () {
+        Route::get('/admin/dashboard', ...);
+    });`,
+        info: { type: 'blue', text: 'O contexto <code>:admin</code> e <code>:public</code> é definido na rota pelo desenvolvedor — o cliente não pode alterá-lo. Isso evita bypass via header manipulado.' }
+      },
+      {
+        title: 'Configurar quais perfis exigem MFA por contexto',
+        subtitle: 'Mapa de role → contextos que obrigam MFA',
+        endpoint: null,
+        body: `// config/auth-security.php
+
+'mfa_required_for' => [
+    'admin'   => ['admin'],            // MFA só no contexto admin
+    'manager' => ['admin', 'reports'], // MFA em admin e relatórios
+    'auditor' => ['admin', 'reports', 'public'], // MFA em tudo
+    'user'    => [],                   // nunca exige MFA
+],`,
+        info: { type: 'blue', text: 'Para adicionar um novo perfil ou contexto basta editar o config — sem tocar em código. O <code>AppRoleResolver</code> lê este mapa automaticamente.' }
+      },
+      {
+        title: 'Testar: admin sem MFA no contexto admin → bloqueado',
+        subtitle: 'Rota administrativa exige MFA para role admin',
+        endpoint: { method: 'get', path: '/api/admin/dashboard' },
+        headers: 'Authorization: Bearer {access_token}',
+        response: {
+          status: 403,
+          statusType: 'err',
+          body: `{
+  <span class="key">"message"</span>: <span class="str">"MFA obrigatório."</span>,
+  <span class="key">"code"</span>: <span class="str">"MFA_REQUIRED"</span>
+}`
+        },
+        info: { type: 'amber', text: 'Para liberar: faça o challenge + verify e inclua o <code>X-Mfa-Session-Token</code> retornado.' }
+      },
+      {
+        title: 'Testar: admin sem MFA no contexto público → liberado',
+        subtitle: 'Rota pública não exige MFA para nenhum perfil',
+        endpoint: { method: 'get', path: '/api/dashboard' },
+        headers: 'Authorization: Bearer {access_token}',
+        response: {
+          status: 200,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"message"</span>: <span class="str">"Área pública — MFA não exigido."</span>
+  }
+}`
+        },
+        info: { type: 'green', text: 'Mesmo usuário admin, sem token MFA, acessa o dashboard público — porque <code>mfa_required_for.admin</code> não inclui o contexto <code>public</code>.' }
+      },
+      {
+        title: 'Testar: admin com MFA no contexto admin → liberado',
+        subtitle: 'Com o token MFA válido, a rota administrativa abre',
+        endpoint: { method: 'get', path: '/api/admin/dashboard' },
+        headers: 'Authorization: Bearer {access_token}\nX-Mfa-Session-Token: {mfa_session_token}',
+        response: {
+          status: 200,
+          body: `{
+  <span class="key">"data"</span>: {
+    <span class="key">"message"</span>: <span class="str">"Área administrativa — MFA verificado."</span>
+  }
+}`
+        },
+        info: { type: 'green', text: 'Fluxo completo: login → challenge → verify → acessar rota admin com <code>X-Mfa-Session-Token</code>.' }
+      }
+    ]
+  },
+
+  {
+    id: 5,
     title: 'Remover fator (com role admin)',
     description: 'Testa o bloqueio de remoção do último fator para usuários admin.',
     steps: [
