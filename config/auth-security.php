@@ -15,22 +15,16 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Validação de contratos no boot
+    | Contratos (opcionais — cada um tem implementação padrão no-op)
     |--------------------------------------------------------------------------
-    | Quando true (padrão), o ServiceProvider lança RuntimeException em boot()
-    | se algum dos 5 contratos obrigatórios não estiver vinculado no container.
-    | Desative apenas em ambiente de teste (o TestCase do pacote faz isso).
-    */
-
-    'require_contracts' => true,
-
-    /*
-    |--------------------------------------------------------------------------
-    | Contratos (implementados pela app consumidora)
-    |--------------------------------------------------------------------------
-    | O ServiceProvider valida em boot() que todos estão preenchidos.
-    | Deixe null apenas enquanto ainda não configurou — o pacote falhará cedo
-    | com mensagem clara se algum contrato obrigatório estiver ausente.
+    | Preencha com o FQCN da sua implementação para sobrescrever o default.
+    | Deixe null para usar o comportamento padrão descrito abaixo:
+    |
+    |  tenant_resolver  → NullMfaTenantResolver  — sem tenant (single-tenant)
+    |  role_resolver    → NullMfaRoleResolver    — sem papéis, MFA nunca obrigatório via RBAC
+    |  context_resolver → NullMfaContextResolver — sem contexto de acesso
+    |  message_sender   → NullMfaMessageSender   — OTP logado como warning, nunca enviado
+    |  audit_logger     → NullMfaAuditLogger     — eventos descartados silenciosamente
     */
 
     'tenant_resolver' => null, // implements Ae3\AuthSecurity\Contracts\MfaTenantResolver

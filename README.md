@@ -175,11 +175,41 @@ class User extends Authenticatable
 
 ---
 
-## Contratos obrigatórios
+## Contratos
 
-A app consumidora deve implementar e configurar os 5 contratos:
+Todos os 5 contratos possuem implementação padrão (no-op). O pacote funciona sem nenhuma configuração adicional — mas com comportamento limitado para cada contrato não configurado.
+
+| Contrato | Chave config | Default quando null | Impacto se ignorado |
+|---|---|---|---|
+| `MfaMessageSender` | `message_sender` | `NullMfaMessageSender` | OTP logado como `warning`, nunca entregue — **use apenas em sandbox** |
+| `MfaAuditLogger` | `audit_logger` | `NullMfaAuditLogger` | Eventos de segurança descartados silenciosamente |
+| `MfaTenantResolver` | `tenant_resolver` | `NullMfaTenantResolver` | Todos os usuários sem tenant — políticas de organização inativas |
+| `MfaRoleResolver` | `role_resolver` | `NullMfaRoleResolver` | Nenhum papel resolve, MFA nunca obrigatório via RBAC |
+| `MfaContextResolver` | `context_resolver` | `NullMfaContextResolver` | Sem contexto de acesso — políticas por contexto inativas |
+
+**Regra geral**: `MfaMessageSender` é imprescindível em produção (OTP deve ser entregue). Os demais podem ficar como default em apps single-tenant sem RBAC.
+
+### Implementando os contratos
+
+Registre em `config/auth-security.php`:
+
+```php
+'message_sender'   => App\Mfa\MyMessageSender::class,
+'audit_logger'     => App\Mfa\MyAuditLogger::class,
+'tenant_resolver'  => App\Mfa\MyTenantResolver::class,
+'role_resolver'    => App\Mfa\MyRoleResolver::class,
+'context_resolver' => App\Mfa\MyContextResolver::class,
+```
+
+Ou via `AppServiceProvider::register()`:
+
+```php
+$this->app->singleton(MfaMessageSender::class, MyMessageSender::class);
+```
 
 ### MfaMessageSender
+
+Responsável por **entregar o OTP** ao usuário (e-mail, SMS, WhatsApp, push).
 
 ```php
 use Ae3\AuthSecurity\Contracts\MfaMessageSender;
@@ -190,13 +220,15 @@ class MyMessageSender implements MfaMessageSender
     {
         match ($channel) {
             'email' => Mail::to($identifier)->send(new OtpMail($code)),
-            'sms'   => SmsService::send($identifier, "Seu código: $code"),
+            'sms'   => SmsService::send($identifier, "Seu código: {$code}"),
         };
     }
 }
 ```
 
 ### MfaAuditLogger
+
+Responsável por **persistir eventos de segurança** (enrollment, verify, lockout, recovery).
 
 ```php
 use Ae3\AuthSecurity\Contracts\MfaAuditLogger;
@@ -212,6 +244,8 @@ class MyAuditLogger implements MfaAuditLogger
 
 ### MfaTenantResolver
 
+Resolve o **tenant** de um usuário. Necessário para políticas de organização e RBAC multi-tenant.
+
 ```php
 use Ae3\AuthSecurity\Contracts\MfaTenantResolver;
 use Ae3\AuthSecurity\Contracts\TenantIdentity;
@@ -226,6 +260,8 @@ class MyTenantResolver implements MfaTenantResolver
 ```
 
 ### MfaRoleResolver
+
+Resolve os **papéis** de um usuário e determina se um papel exige MFA para um tenant/contexto.
 
 ```php
 use Ae3\AuthSecurity\Contracts\MfaRoleResolver;
@@ -249,6 +285,8 @@ class MyRoleResolver implements MfaRoleResolver
 
 ### MfaContextResolver
 
+Resolve o **contexto de acesso** do request (ex.: `web_admin`, `citizen`). Permite políticas MFA diferenciadas por canal.
+
 ```php
 use Ae3\AuthSecurity\Contracts\MfaContextResolver;
 
@@ -259,13 +297,6 @@ class MyContextResolver implements MfaContextResolver
         return $request->header('X-Access-Context'); // ex: 'web_admin', 'citizen'
     }
 }
-```
-
-Registre em `config/auth-security.php` ou via `AppServiceProvider`:
-
-```php
-$this->app->singleton(MfaMessageSender::class, MyMessageSender::class);
-// ... demais contratos
 ```
 
 ---

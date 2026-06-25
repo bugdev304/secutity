@@ -9,6 +9,11 @@ use Ae3\AuthSecurity\Contracts\MfaContextResolver;
 use Ae3\AuthSecurity\Contracts\MfaMessageSender;
 use Ae3\AuthSecurity\Contracts\MfaRoleResolver;
 use Ae3\AuthSecurity\Contracts\MfaTenantResolver;
+use Ae3\AuthSecurity\Defaults\NullMfaAuditLogger;
+use Ae3\AuthSecurity\Defaults\NullMfaContextResolver;
+use Ae3\AuthSecurity\Defaults\NullMfaMessageSender;
+use Ae3\AuthSecurity\Defaults\NullMfaRoleResolver;
+use Ae3\AuthSecurity\Defaults\NullMfaTenantResolver;
 use Ae3\AuthSecurity\Exceptions\AssistedRecoveryExpiredException;
 use Ae3\AuthSecurity\Exceptions\AssistedRecoveryInvalidStatusException;
 use Ae3\AuthSecurity\Exceptions\AssistedRecoveryInvalidTokenException;
@@ -46,7 +51,6 @@ use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\ServiceProvider;
-use RuntimeException;
 use Symfony\Component\HttpFoundation\Response;
 
 class AuthSecurityServiceProvider extends ServiceProvider
@@ -76,7 +80,6 @@ class AuthSecurityServiceProvider extends ServiceProvider
         $this->bootRateLimiters();
         $this->bootMiddlewareAliases();
         $this->bootExceptionRendering();
-        $this->bootContractValidation();
     }
 
     /** Registra as rotas do pacote sob um prefixo configurável. Chamar no routes/api.php da app. */
@@ -91,6 +94,7 @@ class AuthSecurityServiceProvider extends ServiceProvider
 
     private function registerContracts(): void
     {
+        // Bind implementações explicitamente configuradas pela app consumidora
         foreach (self::CONTRACT_MAP as $configKey => $contractInterface) {
             $implementation = config("auth-security.{$configKey}");
 
@@ -98,29 +102,13 @@ class AuthSecurityServiceProvider extends ServiceProvider
                 $this->app->singleton($contractInterface, $implementation);
             }
         }
-    }
 
-    private function bootContractValidation(): void
-    {
-        if (! config('auth-security.require_contracts', true)) {
-            return;
-        }
-
-        $missingContracts = [];
-
-        foreach (self::CONTRACT_MAP as $configKey => $contractInterface) {
-            if (! $this->app->bound($contractInterface)) {
-                $missingContracts[] = "  - auth-security.{$configKey} ({$contractInterface})";
-            }
-        }
-
-        if ($missingContracts !== []) {
-            throw new RuntimeException(
-                "ae3/auth-security: contratos obrigatórios não configurados:\n"
-                .implode("\n", $missingContracts)
-                ."\n\nConfigure cada contrato em config/auth-security.php ou via AppServiceProvider."
-            );
-        }
+        // Defaults no-op para contratos não configurados (bindIf preserva bindings acima)
+        $this->app->bindIf(MfaAuditLogger::class, NullMfaAuditLogger::class);
+        $this->app->bindIf(MfaMessageSender::class, NullMfaMessageSender::class);
+        $this->app->bindIf(MfaTenantResolver::class, NullMfaTenantResolver::class);
+        $this->app->bindIf(MfaRoleResolver::class, NullMfaRoleResolver::class);
+        $this->app->bindIf(MfaContextResolver::class, NullMfaContextResolver::class);
     }
 
     private function bootPublishes(): void
@@ -140,9 +128,7 @@ class AuthSecurityServiceProvider extends ServiceProvider
 
     private function bootEventListeners(): void
     {
-        if ($this->app->bound(MfaAuditLogger::class)) {
-            Event::subscribe(DispatchAuditLogListener::class);
-        }
+        Event::subscribe(DispatchAuditLogListener::class);
     }
 
     // Registrado via ServiceProvider (não #[ObservedBy]) para compatibilidade com Laravel 10.
