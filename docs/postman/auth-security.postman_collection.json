@@ -52,6 +52,29 @@
       "description": "Cadastro e gestão de fatores MFA do usuário autenticado.",
       "item": [
         {
+          "name": "GET /mfa/contacts — contatos disponíveis para cadastro",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('OK', () => pm.response.to.have.status(200));",
+                  "var json = pm.response.json();",
+                  "if (json.data && json.data[0]) {",
+                  "  pm.environment.set('mfa_identifier', json.data[0].identifier);",
+                  "  pm.environment.set('mfa_channel', json.data[0].channel);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{base_url}}/{{prefix}}/mfa/contacts", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "contacts"] }
+          }
+        },
+        {
           "name": "GET /mfa/factors — listar confirmados",
           "request": {
             "method": "GET",
@@ -79,7 +102,7 @@
             "url": { "raw": "{{base_url}}/{{prefix}}/mfa/factors", "host": ["{{base_url}}"], "path": ["{{prefix}}", "mfa", "factors"] },
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"type\": \"email\",\n  \"identifier\": \"{{sandbox_email}}\",\n  \"name\": \"E-mail pessoal\"\n}"
+              "raw": "{\n  \"type\": \"otp_email\",\n  \"identifier\": \"{{mfa_identifier}}\",\n  \"name\": \"E-mail pessoal\"\n}"
             }
           }
         },
