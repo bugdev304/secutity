@@ -4,6 +4,11 @@ declare(strict_types=1);
 
 namespace Ae3\AuthSecurity;
 
+use Ae3\AuthSecurity\Contracts\MfaAuditLogger;
+use Ae3\AuthSecurity\Contracts\MfaContextResolver;
+use Ae3\AuthSecurity\Contracts\MfaMessageSender;
+use Ae3\AuthSecurity\Contracts\MfaRoleResolver;
+use Ae3\AuthSecurity\Contracts\MfaTenantResolver;
 use Ae3\AuthSecurity\Models\AssistedRecovery;
 use Ae3\AuthSecurity\Models\Factor;
 use Ae3\AuthSecurity\Models\OrganizationPolicy;
@@ -17,9 +22,22 @@ use Ae3\AuthSecurity\Observers\PasswordHistoryObserver;
 use Ae3\AuthSecurity\Observers\RecoveryCodeObserver;
 use Ae3\AuthSecurity\Observers\UserStateObserver;
 use Illuminate\Support\ServiceProvider;
+use RuntimeException;
 
 class AuthSecurityServiceProvider extends ServiceProvider
 {
+    /**
+     * Contratos obrigatórios: chave de config → interface do pacote.
+     * Usados tanto para binding automático quanto para validação no boot.
+     */
+    private const CONTRACT_MAP = [
+        'tenant_resolver' => MfaTenantResolver::class,
+        'role_resolver' => MfaRoleResolver::class,
+        'context_resolver' => MfaContextResolver::class,
+        'message_sender' => MfaMessageSender::class,
+        'audit_logger' => MfaAuditLogger::class,
+    ];
+
     public function register(): void
     {
         $this->mergeConfigFrom(
@@ -28,12 +46,51 @@ class AuthSecurityServiceProvider extends ServiceProvider
         );
 
         $this->app->singleton(AuthSecurity::class, fn () => new AuthSecurity);
+
+        $this->registerContracts();
     }
 
     public function boot(): void
     {
         $this->bootPublishes();
         $this->bootObservers();
+        $this->bootContractValidation();
+    }
+
+    // Vincula cada contrato à implementação configurada pela app consumidora.
+    private function registerContracts(): void
+    {
+        foreach (self::CONTRACT_MAP as $configKey => $contractInterface) {
+            $implementation = config("auth-security.{$configKey}");
+
+            if ($implementation !== null) {
+                $this->app->singleton($contractInterface, $implementation);
+            }
+        }
+    }
+
+    // Falha cedo com mensagem clara quando contratos obrigatórios não estão vinculados.
+    private function bootContractValidation(): void
+    {
+        if (! config('auth-security.require_contracts', true)) {
+            return;
+        }
+
+        $missingContracts = [];
+
+        foreach (self::CONTRACT_MAP as $configKey => $contractInterface) {
+            if (! $this->app->bound($contractInterface)) {
+                $missingContracts[] = "  - auth-security.{$configKey} ({$contractInterface})";
+            }
+        }
+
+        if ($missingContracts !== []) {
+            throw new RuntimeException(
+                "ae3/auth-security: contratos obrigatórios não configurados:\n"
+                .implode("\n", $missingContracts)
+                ."\n\nConfigure cada contrato em config/auth-security.php ou via AppServiceProvider."
+            );
+        }
     }
 
     private function bootPublishes(): void

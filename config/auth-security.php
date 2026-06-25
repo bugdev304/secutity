@@ -11,7 +11,18 @@ return [
     */
 
     'schema' => 'auth_security',
-    'user_model' => null, // ex.: \App\Models\User::class — a app consumidora preenche
+    'user_model' => null, // ex.: App\Models\User::class — a app consumidora preenche
+
+    /*
+    |--------------------------------------------------------------------------
+    | Validação de contratos no boot
+    |--------------------------------------------------------------------------
+    | Quando true (padrão), o ServiceProvider lança RuntimeException em boot()
+    | se algum dos 5 contratos obrigatórios não estiver vinculado no container.
+    | Desative apenas em ambiente de teste (o TestCase do pacote faz isso).
+    */
+
+    'require_contracts' => true,
 
     /*
     |--------------------------------------------------------------------------
