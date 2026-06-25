@@ -16,6 +16,11 @@ abstract class AuthSecurityModel extends Model
             ? $this->table
             : Str::snake(Str::pluralStudly(class_basename($this)));
 
+        // Schema vazio desativa o prefixo — usado em testes SQLite
+        if ($schema === null || $schema === '') {
+            return $tableName;
+        }
+
         return "{$schema}.{$tableName}";
     }
 }
