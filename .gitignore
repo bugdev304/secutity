@@ -4,3 +4,4 @@
 composer.lock
 coverage/
 .env
+.idea

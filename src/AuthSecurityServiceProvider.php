@@ -14,6 +14,7 @@ use Ae3\AuthSecurity\Defaults\NullMfaContextResolver;
 use Ae3\AuthSecurity\Defaults\NullMfaMessageSender;
 use Ae3\AuthSecurity\Defaults\NullMfaRoleResolver;
 use Ae3\AuthSecurity\Defaults\NullMfaTenantResolver;
+use Ae3\AuthSecurity\Exceptions\AccountLockedException;
 use Ae3\AuthSecurity\Exceptions\AssistedRecoveryExpiredException;
 use Ae3\AuthSecurity\Exceptions\AssistedRecoveryInvalidStatusException;
 use Ae3\AuthSecurity\Exceptions\AssistedRecoveryInvalidTokenException;
@@ -207,6 +208,7 @@ class AuthSecurityServiceProvider extends ServiceProvider
     private function resolveExceptionDetails(AuthSecurityException $exception): array
     {
         return match (true) {
+            $exception instanceof AccountLockedException => [Response::HTTP_LOCKED, 'ACCOUNT_LOCKED', array_filter(['locked_at' => $exception->getLockedAt()?->toIso8601String()])],
             $exception instanceof OtpExpiredException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'INVALID_CODE', []],
             $exception instanceof OtpInvalidException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'INVALID_CODE', ['remaining_attempts' => $exception->getRemainingAttempts()]],
             $exception instanceof OtpResendLimitException => [Response::HTTP_TOO_MANY_REQUESTS, 'RESEND_RATE_LIMITED', []],
