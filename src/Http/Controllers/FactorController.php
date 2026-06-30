@@ -13,10 +13,12 @@ use Ae3\AuthSecurity\Contracts\MfaContextResolver;
 use Ae3\AuthSecurity\Contracts\MfaRoleResolver;
 use Ae3\AuthSecurity\Contracts\MfaTenantResolver;
 use Ae3\AuthSecurity\Enums\FactorType;
+use Ae3\AuthSecurity\Exceptions\InvalidFactorIdentifierException;
 use Ae3\AuthSecurity\Http\Requests\ConfirmFactorRequest;
 use Ae3\AuthSecurity\Http\Requests\EnrollFactorRequest;
 use Ae3\AuthSecurity\Http\Resources\FactorResource;
 use Ae3\AuthSecurity\Models\Factor;
+use Ae3\AuthSecurity\Support\ContactTokenizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
@@ -60,10 +62,16 @@ class FactorController extends Controller
             ], Response::HTTP_CREATED);
         }
 
+        $contact = ContactTokenizer::resolve($user, $request->input('contact_token'));
+
+        if ($contact === null) {
+            throw new InvalidFactorIdentifierException;
+        }
+
         $factor = $enrollOtp->execute(
             $user,
             $factorType,
-            $request->input('identifier'),
+            $contact->identifier,
             $request->input('name'),
         );
 

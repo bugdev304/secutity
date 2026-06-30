@@ -13,7 +13,6 @@ use Ae3\AuthSecurity\Http\Requests\CompleteAssistedRecoveryRequest;
 use Ae3\AuthSecurity\Http\Requests\RequestAssistedRecoveryRequest;
 use Ae3\AuthSecurity\Http\Resources\AssistedRecoveryResource;
 use Ae3\AuthSecurity\Models\AssistedRecovery;
-use Ae3\AuthSecurity\Models\UserState;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -26,11 +25,12 @@ class AssistedRecoveryController extends Controller
         RequestAssistedRecoveryRequest $request,
         RequestAssistedRecoveryAction $requestRecovery,
     ): JsonResponse {
-        $targetUser = UserState::find($request->input('target_user_id'))
-            ?? $request->user(); // fallback: request own recovery
+        $userModel = config('auth-security.user_model');
+        $targetUser = $userModel::find($request->input('target_user_id'))
+            ?? $request->user();
 
         $recovery = $requestRecovery->execute(
-            $targetUser instanceof UserState ? $request->user() : $targetUser,
+            $targetUser,
             AssistedRecoveryReason::from($request->input('reason_category')),
             $request->input('reason_text'),
         );

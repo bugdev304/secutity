@@ -17,6 +17,7 @@ class UserState extends AuthSecurityModel
         'account_unlocked_by_user_id',
         'account_unlocked_at',
         'must_register_factor',
+        'recovery_refused_at',
     ];
 
     protected function casts(): array
@@ -26,6 +27,7 @@ class UserState extends AuthSecurityModel
             'account_locked_at' => 'datetime',
             'account_unlocked_at' => 'datetime',
             'must_register_factor' => 'boolean',
+            'recovery_refused_at'  => 'datetime',
         ];
     }
 

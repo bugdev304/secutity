@@ -7,6 +7,7 @@ namespace Ae3\AuthSecurity\Tests\Feature;
 use Ae3\AuthSecurity\Enums\FactorType;
 use Ae3\AuthSecurity\Models\Factor;
 use Ae3\AuthSecurity\Services\OtpService;
+use Ae3\AuthSecurity\Support\ContactTokenizer;
 use Symfony\Component\HttpFoundation\Response;
 
 class FactorControllerTest extends FeatureTestCase
@@ -47,19 +48,21 @@ class FactorControllerTest extends FeatureTestCase
 
     public function test_store_otp_creates_pending_factor_and_sends_otp(): void
     {
+        $contactToken = ContactTokenizer::generate('email', $this->user->email);
+
         $response = $this->postJson('/test-api/mfa/factors', [
-            'type' => 'email',
-            'identifier' => 'user@example.com',
-            'name' => 'Work email',
+            'type'          => 'email',
+            'contact_token' => $contactToken,
+            'name'          => 'Work email',
         ]);
 
         $response->assertStatus(Response::HTTP_CREATED)
             ->assertJsonPath('meta.enrollment_started', true);
 
         $this->assertDatabaseHas('factors', [
-            'user_id' => $this->user->id,
-            'type' => 'email',
-            'identifier' => 'user@example.com',
+            'user_id'      => $this->user->id,
+            'type'         => 'email',
+            'identifier'   => $this->user->email,
             'confirmed_at' => null,
         ]);
 
@@ -67,10 +70,20 @@ class FactorControllerTest extends FeatureTestCase
         $this->assertSame('email', $this->messageSender->sent[0]['channel']);
     }
 
-    public function test_store_requires_identifier_for_otp(): void
+    public function test_store_requires_contact_token_for_otp(): void
     {
         $response = $this->postJson('/test-api/mfa/factors', [
             'type' => 'email',
+        ]);
+
+        $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);
+    }
+
+    public function test_store_rejects_invalid_contact_token(): void
+    {
+        $response = $this->postJson('/test-api/mfa/factors', [
+            'type'          => 'email',
+            'contact_token' => 'token-invalido',
         ]);
 
         $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY);

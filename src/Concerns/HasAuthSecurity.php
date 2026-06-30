@@ -53,6 +53,11 @@ trait HasAuthSecurity
         return (bool) $this->authSecurityState?->must_register_factor;
     }
 
+    public function lastRecoveryRefusedAt(): ?\Illuminate\Support\Carbon
+    {
+        return $this->authSecurityState?->recovery_refused_at;
+    }
+
     public function hasMfaFactor(): bool
     {
         return $this->mfaFactors()->confirmed()->exists();

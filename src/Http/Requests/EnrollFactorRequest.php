@@ -13,10 +13,10 @@ class EnrollFactorRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'type' => ['required', Rule::enum(FactorType::class)],
-            'identifier' => ['required_unless:type,authenticator_app', 'nullable', 'string', 'max:255'],
-            'name' => ['nullable', 'string', 'max:100'],
-            'holder_name' => ['required_if:type,authenticator_app', 'nullable', 'string', 'max:255'],
+            'type'          => ['required', Rule::enum(FactorType::class)],
+            'contact_token' => ['required_unless:type,authenticator_app', 'nullable', 'string'],
+            'name'          => ['nullable', 'string', 'max:100'],
+            'holder_name'   => ['required_if:type,authenticator_app', 'nullable', 'string', 'max:255'],
         ];
     }
 }

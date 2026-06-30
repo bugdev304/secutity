@@ -86,6 +86,8 @@ class AssistedRecoveryService
             ['user_id' => $recovery->target_user_id],
             ['must_register_factor' => true],
         );
+
+        $this->revokeTokens($recovery->target_user_id);
     }
 
     /**
@@ -102,5 +104,18 @@ class AssistedRecoveryService
             'status' => AssistedRecoveryStatus::Refused,
             'refused_at' => now(),
         ]);
+
+        UserState::updateOrCreate(
+            ['user_id' => $recovery->target_user_id],
+            ['recovery_refused_at' => now()],
+        );
+
+        $this->revokeTokens($recovery->target_user_id);
+    }
+
+    private function revokeTokens(int $userId): void
+    {
+        $userModel = config('auth-security.user_model');
+        $userModel::find($userId)?->tokens()->delete();
     }
 }

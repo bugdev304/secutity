@@ -13,6 +13,7 @@ use Ae3\AuthSecurity\Models\AssistedRecovery;
 use Ae3\AuthSecurity\Models\UserState;
 use Ae3\AuthSecurity\Services\AssistedRecoveryService;
 use Ae3\AuthSecurity\Tests\DatabaseTestCase;
+use Ae3\AuthSecurity\Tests\Support\TestUser;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Mockery;
 
@@ -27,6 +28,8 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        $this->app['config']->set('auth-security.user_model', TestUser::class);
 
         $this->service = new AssistedRecoveryService;
 
@@ -211,15 +214,62 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
         $this->service->refuse($recovery, $this->admin);
     }
 
+    public function test_refuse_sets_recovery_refused_at_on_user_state(): void
+    {
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested);
+
+        $this->service->refuse($recovery, $this->admin);
+
+        $state = UserState::where('user_id', 1)->first();
+        $this->assertNotNull($state->recovery_refused_at);
+    }
+
+    public function test_complete_revokes_user_tokens(): void
+    {
+        $user = $this->createUserWithToken();
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested, $user->id);
+        $token = $this->service->release($recovery, $this->admin);
+
+        $this->assertCount(1, $user->fresh()->tokens);
+
+        $this->service->complete($recovery->fresh(), $token);
+
+        $this->assertCount(0, $user->fresh()->tokens);
+    }
+
+    public function test_refuse_revokes_user_tokens(): void
+    {
+        $user = $this->createUserWithToken();
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested, $user->id);
+
+        $this->assertCount(1, $user->fresh()->tokens);
+
+        $this->service->refuse($recovery, $this->admin);
+
+        $this->assertCount(0, $user->fresh()->tokens);
+    }
+
     // ── helpers ──────────────────────────────────────────────────────────────
 
-    private function createRecovery(AssistedRecoveryStatus $status): AssistedRecovery
+    private function createRecovery(AssistedRecoveryStatus $status, int $userId = 1): AssistedRecovery
     {
         return AssistedRecovery::create([
-            'target_user_id' => 1,
+            'target_user_id' => $userId,
             'reason_category' => AssistedRecoveryReason::DeviceLost,
             'status' => $status,
             'requested_at' => now(),
         ]);
+    }
+
+    private function createUserWithToken(): TestUser
+    {
+        $user = TestUser::create([
+            'email' => 'target@example.com',
+            'password' => bcrypt('Password1!'),
+        ]);
+
+        $user->createToken('session');
+
+        return $user;
     }
 }
