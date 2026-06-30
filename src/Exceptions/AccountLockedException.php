@@ -12,7 +12,7 @@ class AccountLockedException extends AuthSecurityException
         string $message = 'This account has been locked due to too many failed attempts.',
         private readonly ?DateTimeInterface $lockedAt = null,
     ) {
-        parent::__construct($message);
+        parent::__construct(__('auth-security.account_locked') ?? $message);
     }
 
     public function getLockedAt(): ?DateTimeInterface

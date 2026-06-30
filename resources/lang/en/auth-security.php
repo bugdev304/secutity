@@ -26,6 +26,7 @@ return [
     'assisted_recovery_invalid_status' => 'This operation cannot be performed with the current recovery status.',
     'assisted_recovery_invalid_token' => 'The recovery token is invalid.',
     'assisted_recovery_expired' => 'The recovery token has expired.',
+    'assisted_recovery_release' => 'Deliver this token to the user via a secure channel. It will not be shown again.',
 
     'policy_below_floor' => 'The policy configuration is below the minimum security floor.',
 

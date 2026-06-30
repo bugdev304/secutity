@@ -126,7 +126,7 @@ class AuthSecurityServiceProvider extends ServiceProvider
         ], 'auth-security-migrations');
 
         $this->publishes([
-            __DIR__.'/../resources/lang' => $this->app->langPath('vendor/auth-security'),
+            __DIR__.'/../resources/lang' => $this->app->langPath(),
         ], 'auth-security-lang');
 
         $this->publishes([

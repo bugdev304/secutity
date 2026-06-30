@@ -54,7 +54,7 @@ class AssistedRecoveryController extends Controller
                 (new AssistedRecoveryResource($recovery->fresh()))->toArray($request),
                 ['recovery_token' => $plainToken],
             ),
-            'meta' => ['warning' => 'Deliver this token to the user via a secure channel. It will not be shown again.'],
+            'meta' => ['warning' => __('auth-security.assisted_recovery_release')],
         ]);
     }
 
