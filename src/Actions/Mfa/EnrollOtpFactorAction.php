@@ -9,6 +9,7 @@ use Ae3\AuthSecurity\Contracts\MfaContactProvider;
 use Ae3\AuthSecurity\Contracts\MfaMessageSender;
 use Ae3\AuthSecurity\Data\MfaContact;
 use Ae3\AuthSecurity\Enums\FactorType;
+use Ae3\AuthSecurity\Enums\MfaChannel;
 use Ae3\AuthSecurity\Exceptions\InvalidFactorIdentifierException;
 use Ae3\AuthSecurity\Models\Factor;
 use Ae3\AuthSecurity\Services\OtpService;
@@ -56,7 +57,7 @@ class EnrollOtpFactorAction
 
         $code = $this->otpService->generate($factor);
 
-        $this->messageSender->sendOtp($factorType->value, $identifier, $code);
+        $this->messageSender->sendOtp(MfaChannel::from($factorType->value), $identifier, $code);
 
         $this->auditLogger->logEvent('mfa.factor.enrollment_started', [
             'user_id' => $user->getAuthIdentifier(),

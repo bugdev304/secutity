@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ae3\AuthSecurity\Tests\Feature;
 
 use Ae3\AuthSecurity\Enums\FactorType;
+use Ae3\AuthSecurity\Enums\MfaChannel;
 use Ae3\AuthSecurity\Models\Factor;
 use Ae3\AuthSecurity\Services\OtpService;
 use Ae3\AuthSecurity\Support\ContactTokenizer;
@@ -48,26 +49,26 @@ class FactorControllerTest extends FeatureTestCase
 
     public function test_store_otp_creates_pending_factor_and_sends_otp(): void
     {
-        $contactToken = ContactTokenizer::generate('email', $this->user->email);
+        $contactToken = ContactTokenizer::generate(MfaChannel::EMAIL, $this->user->email);
 
         $response = $this->postJson('/test-api/mfa/factors', [
-            'type'          => 'email',
+            'type' => 'email',
             'contact_token' => $contactToken,
-            'name'          => 'Work email',
+            'name' => 'Work email',
         ]);
 
         $response->assertStatus(Response::HTTP_CREATED)
             ->assertJsonPath('meta.enrollment_started', true);
 
         $this->assertDatabaseHas('factors', [
-            'user_id'      => $this->user->id,
-            'type'         => 'email',
-            'identifier'   => $this->user->email,
+            'user_id' => $this->user->id,
+            'type' => 'email',
+            'identifier' => $this->user->email,
             'confirmed_at' => null,
         ]);
 
         $this->assertCount(1, $this->messageSender->sent);
-        $this->assertSame('email', $this->messageSender->sent[0]['channel']);
+        $this->assertSame(MfaChannel::EMAIL, $this->messageSender->sent[0]['channel']);
     }
 
     public function test_store_requires_contact_token_for_otp(): void
@@ -82,7 +83,7 @@ class FactorControllerTest extends FeatureTestCase
     public function test_store_rejects_invalid_contact_token(): void
     {
         $response = $this->postJson('/test-api/mfa/factors', [
-            'type'          => 'email',
+            'type' => 'email',
             'contact_token' => 'token-invalido',
         ]);
 

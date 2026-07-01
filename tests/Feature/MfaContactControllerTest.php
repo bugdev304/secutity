@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ae3\AuthSecurity\Tests\Feature;
 
+use Ae3\AuthSecurity\Enums\MfaChannel;
 use Ae3\AuthSecurity\Support\ContactTokenizer;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -32,7 +33,7 @@ class MfaContactControllerTest extends FeatureTestCase
 
         $contactToken = $response->json('data.0.contact_token');
 
-        $expectedToken = ContactTokenizer::generate('email', $this->user->email);
+        $expectedToken = ContactTokenizer::generate(MfaChannel::EMAIL, $this->user->email);
 
         $this->assertSame($expectedToken, $contactToken);
     }
@@ -56,6 +57,6 @@ class MfaContactControllerTest extends FeatureTestCase
 
         $this->assertNotNull($resolved);
         $this->assertSame($this->user->email, $resolved->identifier);
-        $this->assertSame('email', $resolved->channel);
+        $this->assertSame(MfaChannel::EMAIL, $resolved->channel);
     }
 }

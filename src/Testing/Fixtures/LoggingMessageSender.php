@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ae3\AuthSecurity\Testing\Fixtures;
 
 use Ae3\AuthSecurity\Contracts\MfaMessageSender;
+use Ae3\AuthSecurity\Enums\MfaChannel;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -20,10 +21,10 @@ use Illuminate\Support\Facades\Log;
  */
 class LoggingMessageSender implements MfaMessageSender
 {
-    public function sendOtp(string $channel, string $identifier, string $code): void
+    public function sendOtp(MfaChannel $channel, string $identifier, string $code): void
     {
         Log::info('[OTP sandbox]', [
-            'channel' => $channel,
+            'channel' => $channel->value,
             'identifier' => $identifier,
             'code' => $code,
         ]);

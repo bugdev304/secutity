@@ -6,6 +6,7 @@ namespace Ae3\AuthSecurity\Actions\Mfa;
 
 use Ae3\AuthSecurity\Contracts\MfaAuditLogger;
 use Ae3\AuthSecurity\Contracts\MfaMessageSender;
+use Ae3\AuthSecurity\Enums\MfaChannel;
 use Ae3\AuthSecurity\Models\Factor;
 use Ae3\AuthSecurity\Services\OtpService;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -23,7 +24,7 @@ class SendOtpAction
         $code = $this->otpService->generate($factor);
 
         $this->messageSender->sendOtp(
-            $factor->type->value,
+            MfaChannel::from($factor->type->value),
             $factor->identifier,
             $code,
         );

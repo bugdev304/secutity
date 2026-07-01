@@ -213,14 +213,16 @@ Responsável por **entregar o OTP** ao usuário (e-mail, SMS, WhatsApp, push).
 
 ```php
 use Ae3\AuthSecurity\Contracts\MfaMessageSender;
+use Ae3\AuthSecurity\Enums\MfaChannel;
 
 class MyMessageSender implements MfaMessageSender
 {
-    public function sendOtp(string $channel, string $identifier, string $code): void
+    public function sendOtp(MfaChannel $channel, string $identifier, string $code): void
     {
         match ($channel) {
-            'email' => Mail::to($identifier)->send(new OtpMail($code)),
-            'sms'   => SmsService::send($identifier, "Seu código: {$code}"),
+            MfaChannel::EMAIL => Mail::to($identifier)->send(new OtpMail($code)),
+            MfaChannel::SMS   => SmsService::send($identifier, "Seu código: {$code}"),
+            MfaChannel::AUTHENTICATOR_APP => throw new \LogicException('TOTP não usa envio de OTP.'),
         };
     }
 }
@@ -501,15 +503,16 @@ O pacote expõe `GET /mfa/contacts` que retorna os contatos do usuário disponí
 ```php
 use Ae3\AuthSecurity\Contracts\MfaContactProvider;
 use Ae3\AuthSecurity\Data\MfaContact;
+use Ae3\AuthSecurity\Enums\MfaChannel;
 
 class User extends Authenticatable implements MfaContactProvider
 {
     public function mfaContacts(): array
     {
         return [
-            new MfaContact(channel: 'email', identifier: $this->email,         label: 'E-mail principal'),
-            new MfaContact(channel: 'sms',   identifier: $this->phone,         label: 'Celular'),
-            new MfaContact(channel: 'sms',   identifier: $this->backup_phone,  label: 'Celular de backup'),
+            new MfaContact(channel: MfaChannel::EMAIL, identifier: $this->email,         label: 'E-mail principal'),
+            new MfaContact(channel: MfaChannel::SMS,    identifier: $this->phone,         label: 'Celular'),
+            new MfaContact(channel: MfaChannel::SMS,    identifier: $this->backup_phone,  label: 'Celular de backup'),
         ];
     }
 }
@@ -580,8 +583,8 @@ Crie implementações stub em `app/MfaStubs/` para testes locais:
 ```php
 // app/MfaStubs/LogMessageSender.php
 class LogMessageSender implements MfaMessageSender {
-    public function sendOtp(string $channel, string $identifier, string $code): void {
-        Log::info("OTP [{$channel}] para {$identifier}: {$code}");
+    public function sendOtp(MfaChannel $channel, string $identifier, string $code): void {
+        Log::info("OTP [{$channel->value}] para {$identifier}: {$code}");
     }
 }
 ```

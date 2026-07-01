@@ -25,10 +25,10 @@ class MfaContactController extends Controller
         return response()->json([
             'data' => array_map(
                 fn (MfaContact $contact) => [
-                    'channel'            => $contact->channel,
-                    'masked_identifier'  => IdentifierMasker::mask($contact->identifier),
-                    'label'              => $contact->label,
-                    'contact_token'      => ContactTokenizer::generate($contact->channel, $contact->identifier),
+                    'channel' => $contact->channel->value,
+                    'masked_identifier' => IdentifierMasker::mask($contact->identifier),
+                    'label' => $contact->label,
+                    'contact_token' => ContactTokenizer::generate($contact->channel, $contact->identifier),
                 ],
                 $contacts,
             ),

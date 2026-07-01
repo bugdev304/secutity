@@ -6,6 +6,7 @@ namespace Ae3\AuthSecurity\Tests\Support;
 
 use Ae3\AuthSecurity\Contracts\MfaContactProvider;
 use Ae3\AuthSecurity\Data\MfaContact;
+use Ae3\AuthSecurity\Enums\MfaChannel;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Laravel\Sanctum\HasApiTokens;
 
@@ -22,7 +23,7 @@ class TestUser extends Authenticatable implements MfaContactProvider
     public function mfaContacts(): array
     {
         return [
-            new MfaContact(channel: 'email', identifier: $this->email, label: 'E-mail'),
+            new MfaContact(channel: MfaChannel::EMAIL, identifier: $this->email, label: 'E-mail'),
         ];
     }
 }

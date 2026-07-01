@@ -6,13 +6,14 @@ namespace Ae3\AuthSecurity\Support;
 
 use Ae3\AuthSecurity\Contracts\MfaContactProvider;
 use Ae3\AuthSecurity\Data\MfaContact;
+use Ae3\AuthSecurity\Enums\MfaChannel;
 use Illuminate\Contracts\Auth\Authenticatable;
 
 class ContactTokenizer
 {
-    public static function generate(string $channel, string $identifier): string
+    public static function generate(MfaChannel $channel, ?string $identifier): string
     {
-        return hash_hmac('sha256', $channel.$identifier, config('app.key'));
+        return hash_hmac('sha256', $channel->value.($identifier ?? ''), config('app.key'));
     }
 
     public static function resolve(Authenticatable $user, string $token): ?MfaContact
