@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ae3\AuthSecurity\Http\Resources;
 
+use Ae3\AuthSecurity\Enums\PolicySource;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -19,7 +20,7 @@ class OrganizationPolicyResource extends JsonResource
             'role_id' => $this->role_id,
             'context' => $this->context,
             'requires_mfa' => $this->requires_mfa,
-            'source' => $this->context !== null ? 'policy' : 'inherited',
+            'source' => ($this->context !== null ? PolicySource::POLICY : PolicySource::INHERITED)->value,
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }

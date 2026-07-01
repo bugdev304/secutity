@@ -52,7 +52,7 @@ Route::get('organization-policies', [OrganizationPolicyController::class, 'index
 Route::put('organization-policies', [OrganizationPolicyController::class, 'upsert']);
 
 // Contas
-Route::post('accounts/{userId}/unlock', [AccountController::class, 'unlock']);
+Route::post('accounts/{userId}/unlock', [AccountController::class, 'unlock'])->name('accounts.unlock');
 
 // Senha
 Route::post('password', [PasswordController::class, 'change']);

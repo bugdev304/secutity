@@ -10,6 +10,7 @@ use Ae3\AuthSecurity\Actions\AssistedRecovery\ReleaseAssistedRecoveryAction;
 use Ae3\AuthSecurity\Actions\AssistedRecovery\RequestAssistedRecoveryAction;
 use Ae3\AuthSecurity\Enums\AssistedRecoveryReason;
 use Ae3\AuthSecurity\Http\Requests\CompleteAssistedRecoveryRequest;
+use Ae3\AuthSecurity\Http\Requests\RefuseAssistedRecoveryRequest;
 use Ae3\AuthSecurity\Http\Requests\RequestAssistedRecoveryRequest;
 use Ae3\AuthSecurity\Http\Resources\AssistedRecoveryResource;
 use Ae3\AuthSecurity\Models\AssistedRecovery;
@@ -78,7 +79,7 @@ class AssistedRecoveryController extends Controller
 
     /** POST /mfa/assisted-recoveries/{recovery}/refuse */
     public function refuse(
-        Request $request,
+        RefuseAssistedRecoveryRequest $request,
         AssistedRecovery $recovery,
         RefuseAssistedRecoveryAction $refuseRecovery,
     ): JsonResponse {

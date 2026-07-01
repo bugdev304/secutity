@@ -18,13 +18,10 @@ class ChangePasswordAction
     ) {}
 
     /**
-     * Valida, aplica e registra a troca de senha conforme a política configurada.
-     * Lança PasswordPolicyException se a nova senha violar as regras.
-     *
      * O campo de senha do model do host deve ser configurado SEM o cast 'hashed',
      * pois o hash é feito aqui explicitamente para que possamos gravá-lo no histórico.
      */
-    public function execute(Authenticatable $user, string $newPassword): void
+    public function execute(Authenticatable $user, string $newPassword): UserState
     {
         $this->passwordPolicyService->validate($user, $newPassword);
 
@@ -38,7 +35,7 @@ class ChangePasswordAction
 
         $this->passwordPolicyService->record($user, $hashedPassword);
 
-        UserState::updateOrCreate(
+        $userState = UserState::updateOrCreate(
             ['user_id' => $user->getAuthIdentifier()],
             ['password_changed_at' => now()],
         );
@@ -46,5 +43,7 @@ class ChangePasswordAction
         $this->auditLogger->logEvent('password.changed', [
             'user_id' => $user->getAuthIdentifier(),
         ]);
+
+        return $userState;
     }
 }
