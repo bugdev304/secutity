@@ -21,7 +21,7 @@ class EnsurePasswordNotExpired
 
         if ($user !== null && $this->passwordPolicyService->isExpired($user)) {
             return response()->json([
-                'message' => __('auth-security::auth-security.password_expired'),
+                'message' => __('auth-security.password_expired'),
                 'code' => 'PASSWORD_EXPIRED',
             ], Response::HTTP_FORBIDDEN);
         }

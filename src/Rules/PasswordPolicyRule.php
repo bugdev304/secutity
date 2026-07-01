@@ -22,7 +22,7 @@ class PasswordPolicyRule implements ValidationRule
 
         $minLength = (int) config('auth-security.password.min_length', 8);
         if (mb_strlen($password) < $minLength) {
-            $fail(__('auth-security::auth-security.password_violation_min_length', ['min' => $minLength]));
+            $fail(__('auth-security.password_violation_min_length', ['min' => $minLength]));
         }
 
         $classesRequired = (int) config('auth-security.password.classes_required', 3);

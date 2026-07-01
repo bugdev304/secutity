@@ -70,7 +70,7 @@ class EnsureMfaCompleted
     private function denyMfa(): Response
     {
         return response()->json([
-            'message' => __('auth-security::auth-security.mfa_required'),
+            'message' => __('auth-security.mfa_required'),
             'code' => 'MFA_REQUIRED',
         ], Response::HTTP_FORBIDDEN);
     }

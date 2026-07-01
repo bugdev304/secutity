@@ -38,7 +38,7 @@ class RecoveryCodeController extends Controller
 
         if ($hasExistingCodes && ! $confirmInvalidation) {
             return response()->json([
-                'message' => __('auth-security::auth-security.invalidation_required'),
+                'message' => __('auth-security.invalidation_required'),
                 'code' => 'INVALIDATION_REQUIRED',
             ], Response::HTTP_CONFLICT);
         }

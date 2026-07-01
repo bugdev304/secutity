@@ -21,7 +21,7 @@ class EnsureAccountNotLocked
 
         if ($user !== null && $this->lockoutService->isLocked($user)) {
             return response()->json([
-                'message' => __('auth-security::auth-security.account_locked'),
+                'message' => __('auth-security.account_locked'),
                 'code' => 'ACCOUNT_LOCKED',
             ], Response::HTTP_FORBIDDEN);
         }

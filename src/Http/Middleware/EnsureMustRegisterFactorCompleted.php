@@ -27,7 +27,7 @@ class EnsureMustRegisterFactorCompleted
 
         if ($state !== null && $state->must_register_factor) {
             return response()->json([
-                'message' => __('auth-security::auth-security.mfa_factor_registration_required'),
+                'message' => __('auth-security.mfa_factor_registration_required'),
                 'code' => 'MFA_FACTOR_REGISTRATION_REQUIRED',
             ], Response::HTTP_FORBIDDEN);
         }
