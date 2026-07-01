@@ -6,32 +6,32 @@ namespace Ae3\AuthSecurity\Enums;
 
 enum FactorType: string
 {
-    case Email = 'email';
-    case Sms = 'sms';
-    case AuthenticatorApp = 'authenticator_app';
+    case EMAIL = 'email';
+    case SMS = 'sms';
+    case AUTHENTICATOR_APP = 'authenticator_app';
 
     public function label(): string
     {
         return match ($this) {
-            FactorType::Email => 'E-mail',
-            FactorType::Sms => 'SMS',
-            FactorType::AuthenticatorApp => 'Aplicativo autenticador',
+            FactorType::EMAIL => 'E-mail',
+            FactorType::SMS => 'SMS',
+            FactorType::AUTHENTICATOR_APP => 'Aplicativo autenticador',
         };
     }
 
     public function isOtp(): bool
     {
         return match ($this) {
-            FactorType::Email, FactorType::Sms => true,
-            FactorType::AuthenticatorApp => false,
+            FactorType::EMAIL, FactorType::SMS => true,
+            FactorType::AUTHENTICATOR_APP => false,
         };
     }
 
     public function isTotp(): bool
     {
         return match ($this) {
-            FactorType::AuthenticatorApp => true,
-            FactorType::Email, FactorType::Sms => false,
+            FactorType::AUTHENTICATOR_APP => true,
+            FactorType::EMAIL, FactorType::SMS => false,
         };
     }
 }

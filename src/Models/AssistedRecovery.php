@@ -46,8 +46,8 @@ class AssistedRecovery extends AuthSecurityModel
     public function scopePending(Builder $query): Builder
     {
         return $query->whereIn('status', [
-            AssistedRecoveryStatus::Requested->value,
-            AssistedRecoveryStatus::InAnalysis->value,
+            AssistedRecoveryStatus::REQUESTED->value,
+            AssistedRecoveryStatus::IN_ANALYSIS->value,
         ]);
     }
 

@@ -97,7 +97,7 @@ class RecoveryCodeServiceTest extends DatabaseTestCase
 
         $usedCode = RecoveryCode::where('user_id', 1)->whereNotNull('used_at')->first();
         $this->assertNotNull($usedCode);
-        $this->assertEquals(RecoveryCodeInvalidationReason::Used, $usedCode->invalidation_reason);
+        $this->assertEquals(RecoveryCodeInvalidationReason::USED, $usedCode->invalidation_reason);
     }
 
     public function test_verify_throws_when_code_is_invalid(): void

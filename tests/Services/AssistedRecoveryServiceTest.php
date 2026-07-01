@@ -44,24 +44,24 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
 
     public function test_request_creates_assisted_recovery_with_requested_status(): void
     {
-        $recovery = $this->service->request($this->targetUser, AssistedRecoveryReason::DeviceLost);
+        $recovery = $this->service->request($this->targetUser, AssistedRecoveryReason::DEVICE_LOST);
 
-        $this->assertEquals(AssistedRecoveryStatus::Requested, $recovery->status);
+        $this->assertEquals(AssistedRecoveryStatus::REQUESTED, $recovery->status);
         $this->assertEquals(1, $recovery->target_user_id);
-        $this->assertEquals(AssistedRecoveryReason::DeviceLost, $recovery->reason_category);
+        $this->assertEquals(AssistedRecoveryReason::DEVICE_LOST, $recovery->reason_category);
         $this->assertNotNull($recovery->requested_at);
     }
 
     public function test_request_stores_reason_text_when_provided(): void
     {
-        $recovery = $this->service->request($this->targetUser, AssistedRecoveryReason::Other, 'Dispositivo destruído');
+        $recovery = $this->service->request($this->targetUser, AssistedRecoveryReason::OTHER, 'Dispositivo destruído');
 
         $this->assertEquals('Dispositivo destruído', $recovery->reason_text);
     }
 
     public function test_request_stores_null_reason_text_when_not_provided(): void
     {
-        $recovery = $this->service->request($this->targetUser, AssistedRecoveryReason::DeviceLost);
+        $recovery = $this->service->request($this->targetUser, AssistedRecoveryReason::DEVICE_LOST);
 
         $this->assertNull($recovery->reason_text);
     }
@@ -70,7 +70,7 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
 
     public function test_release_returns_plain_token(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED);
 
         $token = $this->service->release($recovery, $this->admin);
 
@@ -80,16 +80,16 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
 
     public function test_release_changes_status_to_released(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED);
 
         $this->service->release($recovery, $this->admin);
 
-        $this->assertEquals(AssistedRecoveryStatus::Released, $recovery->fresh()->status);
+        $this->assertEquals(AssistedRecoveryStatus::RELEASED, $recovery->fresh()->status);
     }
 
     public function test_release_sets_token_hash_and_expiry(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED);
 
         $this->service->release($recovery, $this->admin);
 
@@ -100,7 +100,7 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
 
     public function test_release_records_admin_user(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED);
 
         $this->service->release($recovery, $this->admin);
 
@@ -109,7 +109,7 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
 
     public function test_release_throws_when_already_terminal(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Completed);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::COMPLETED);
 
         $this->expectException(AssistedRecoveryInvalidStatusException::class);
         $this->service->release($recovery, $this->admin);
@@ -117,7 +117,7 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
 
     public function test_release_throws_when_already_released(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Released);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::RELEASED);
 
         $this->expectException(AssistedRecoveryInvalidStatusException::class);
         $this->service->release($recovery, $this->admin);
@@ -127,17 +127,17 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
 
     public function test_complete_succeeds_with_valid_token(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED);
         $token = $this->service->release($recovery, $this->admin);
 
         $this->service->complete($recovery->fresh(), $token);
 
-        $this->assertEquals(AssistedRecoveryStatus::Completed, $recovery->fresh()->status);
+        $this->assertEquals(AssistedRecoveryStatus::COMPLETED, $recovery->fresh()->status);
     }
 
     public function test_complete_clears_token_hash_after_use(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED);
         $token = $this->service->release($recovery, $this->admin);
 
         $this->service->complete($recovery->fresh(), $token);
@@ -147,7 +147,7 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
 
     public function test_complete_sets_must_register_factor(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED);
         $token = $this->service->release($recovery, $this->admin);
 
         $this->service->complete($recovery->fresh(), $token);
@@ -158,7 +158,7 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
 
     public function test_complete_throws_on_invalid_token(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED);
         $this->service->release($recovery, $this->admin);
 
         $this->expectException(AssistedRecoveryInvalidTokenException::class);
@@ -167,7 +167,7 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
 
     public function test_complete_throws_on_expired_token(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED);
         $this->service->release($recovery, $this->admin);
 
         // Simula token expirado
@@ -180,7 +180,7 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
 
     public function test_complete_throws_when_status_not_released(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED);
 
         $this->expectException(AssistedRecoveryInvalidStatusException::class);
         $this->service->complete($recovery, 'any-token');
@@ -190,16 +190,16 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
 
     public function test_refuse_changes_status_to_refused(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED);
 
         $this->service->refuse($recovery, $this->admin);
 
-        $this->assertEquals(AssistedRecoveryStatus::Refused, $recovery->fresh()->status);
+        $this->assertEquals(AssistedRecoveryStatus::REFUSED, $recovery->fresh()->status);
     }
 
     public function test_refuse_sets_refused_at(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED);
 
         $this->service->refuse($recovery, $this->admin);
 
@@ -208,7 +208,7 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
 
     public function test_refuse_throws_when_already_terminal(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Completed);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::COMPLETED);
 
         $this->expectException(AssistedRecoveryInvalidStatusException::class);
         $this->service->refuse($recovery, $this->admin);
@@ -216,7 +216,7 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
 
     public function test_refuse_sets_recovery_refused_at_on_user_state(): void
     {
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED);
 
         $this->service->refuse($recovery, $this->admin);
 
@@ -227,7 +227,7 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
     public function test_complete_revokes_user_tokens(): void
     {
         $user = $this->createUserWithToken();
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested, $user->id);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED, $user->id);
         $token = $this->service->release($recovery, $this->admin);
 
         $this->assertCount(1, $user->fresh()->tokens);
@@ -240,7 +240,7 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
     public function test_refuse_revokes_user_tokens(): void
     {
         $user = $this->createUserWithToken();
-        $recovery = $this->createRecovery(AssistedRecoveryStatus::Requested, $user->id);
+        $recovery = $this->createRecovery(AssistedRecoveryStatus::REQUESTED, $user->id);
 
         $this->assertCount(1, $user->fresh()->tokens);
 
@@ -255,7 +255,7 @@ class AssistedRecoveryServiceTest extends DatabaseTestCase
     {
         return AssistedRecovery::create([
             'target_user_id' => $userId,
-            'reason_category' => AssistedRecoveryReason::DeviceLost,
+            'reason_category' => AssistedRecoveryReason::DEVICE_LOST,
             'status' => $status,
             'requested_at' => now(),
         ]);

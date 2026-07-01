@@ -93,7 +93,7 @@ class TotpServiceTest extends TestCase
         $factor = new Factor;
         $factor->id = 1;
         $factor->setAttribute('user_id', 42);
-        $factor->type = FactorType::AuthenticatorApp;
+        $factor->type = FactorType::AUTHENTICATOR_APP;
         $factor->secret_encrypted = $this->totpService->generateSecret();
 
         return $factor;

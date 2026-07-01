@@ -64,7 +64,7 @@ class RecoveryCodeService
             if (Hash::check($code, $recoveryCode->code_hash)) {
                 $recoveryCode->update([
                     'used_at' => now(),
-                    'invalidation_reason' => RecoveryCodeInvalidationReason::Used,
+                    'invalidation_reason' => RecoveryCodeInvalidationReason::USED,
                 ]);
 
                 return $recoveryCode;

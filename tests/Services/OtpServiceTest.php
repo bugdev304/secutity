@@ -28,7 +28,7 @@ class OtpServiceTest extends TestCase
         $this->factor = new Factor;
         $this->factor->id = 1;
         $this->factor->setAttribute('user_id', 42);
-        $this->factor->type = FactorType::Email;
+        $this->factor->type = FactorType::EMAIL;
         $this->factor->identifier = 'test@example.com';
     }
 

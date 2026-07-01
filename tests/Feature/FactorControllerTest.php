@@ -26,13 +26,13 @@ class FactorControllerTest extends FeatureTestCase
     {
         Factor::create([
             'user_id' => $this->user->id,
-            'type' => FactorType::Email,
+            'type' => FactorType::EMAIL,
             'identifier' => 'test@example.com',
             'confirmed_at' => now(),
         ]);
         Factor::create([
             'user_id' => $this->user->id,
-            'type' => FactorType::Sms,
+            'type' => FactorType::SMS,
             'identifier' => '+5511999999999',
             'confirmed_at' => null, // pending
         ]);
@@ -112,7 +112,7 @@ class FactorControllerTest extends FeatureTestCase
     {
         $factor = Factor::create([
             'user_id' => $this->user->id,
-            'type' => FactorType::Email,
+            'type' => FactorType::EMAIL,
             'identifier' => 'test@example.com',
             'confirmed_at' => null,
         ]);
@@ -135,7 +135,7 @@ class FactorControllerTest extends FeatureTestCase
     {
         $factor = Factor::create([
             'user_id' => $this->user->id,
-            'type' => FactorType::Email,
+            'type' => FactorType::EMAIL,
             'identifier' => 'test@example.com',
             'confirmed_at' => null,
         ]);
@@ -159,7 +159,7 @@ class FactorControllerTest extends FeatureTestCase
     {
         $factor = Factor::create([
             'user_id' => $this->user->id,
-            'type' => FactorType::Email,
+            'type' => FactorType::EMAIL,
             'identifier' => 'test@example.com',
             'confirmed_at' => now(),
         ]);
@@ -176,13 +176,13 @@ class FactorControllerTest extends FeatureTestCase
     {
         $factor1 = Factor::create([
             'user_id' => $this->user->id,
-            'type' => FactorType::Email,
+            'type' => FactorType::EMAIL,
             'identifier' => 'a@example.com',
             'confirmed_at' => now(),
         ]);
         $factor2 = Factor::create([
             'user_id' => $this->user->id,
-            'type' => FactorType::Sms,
+            'type' => FactorType::SMS,
             'identifier' => '+5511999999999',
             'confirmed_at' => now(),
         ]);

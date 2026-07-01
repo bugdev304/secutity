@@ -45,7 +45,7 @@ class MfaVerificationController extends Controller
 
         // TOTP ou recovery_code: não envia, só instrui
         $instruction = match ($factorType) {
-            FactorType::AuthenticatorApp => __('auth-security::auth-security.totp_instruction', [], app()->getLocale()) ?: 'Open your authenticator app and enter the current code generated for this account.',
+            FactorType::AUTHENTICATOR_APP => __('auth-security::auth-security.totp_instruction', [], app()->getLocale()) ?: 'Open your authenticator app and enter the current code generated for this account.',
             default => __('auth-security::auth-security.recovery_code_instruction', [], app()->getLocale()) ?: 'Use one of your unused recovery codes.',
         };
 
@@ -73,8 +73,8 @@ class MfaVerificationController extends Controller
         $code = $request->input('code');
 
         match ($factorType) {
-            FactorType::Email, FactorType::Sms => $verifyOtp->execute($user, $factor, $code),
-            FactorType::AuthenticatorApp => $verifyTotp->execute($user, $factor, $code),
+            FactorType::EMAIL, FactorType::SMS => $verifyOtp->execute($user, $factor, $code),
+            FactorType::AUTHENTICATOR_APP => $verifyTotp->execute($user, $factor, $code),
         };
 
         $sessionData = $mfaSessionService->create($user);

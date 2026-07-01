@@ -6,28 +6,28 @@ namespace Ae3\AuthSecurity\Enums;
 
 enum AssistedRecoveryReason: string
 {
-    case DeviceLost = 'device_lost';
-    case RecoveryCodesLost = 'recovery_codes_lost';
-    case DeviceChange = 'device_change';
-    case Other = 'other';
+    case DEVICE_LOST = 'device_lost';
+    case RECOVERY_CODES_LOST = 'recovery_codes_lost';
+    case DEVICE_CHANGE = 'device_change';
+    case OTHER = 'other';
 
     public function label(): string
     {
         return match ($this) {
-            AssistedRecoveryReason::DeviceLost => 'Dispositivo perdido ou roubado',
-            AssistedRecoveryReason::RecoveryCodesLost => 'Códigos de recuperação perdidos',
-            AssistedRecoveryReason::DeviceChange => 'Troca de dispositivo',
-            AssistedRecoveryReason::Other => 'Outro motivo',
+            AssistedRecoveryReason::DEVICE_LOST => 'Dispositivo perdido ou roubado',
+            AssistedRecoveryReason::RECOVERY_CODES_LOST => 'Códigos de recuperação perdidos',
+            AssistedRecoveryReason::DEVICE_CHANGE => 'Troca de dispositivo',
+            AssistedRecoveryReason::OTHER => 'Outro motivo',
         };
     }
 
     public function requiresManualDescription(): bool
     {
         return match ($this) {
-            AssistedRecoveryReason::Other => true,
-            AssistedRecoveryReason::DeviceLost,
-            AssistedRecoveryReason::RecoveryCodesLost,
-            AssistedRecoveryReason::DeviceChange => false,
+            AssistedRecoveryReason::OTHER => true,
+            AssistedRecoveryReason::DEVICE_LOST,
+            AssistedRecoveryReason::RECOVERY_CODES_LOST,
+            AssistedRecoveryReason::DEVICE_CHANGE => false,
         };
     }
 }

@@ -26,7 +26,7 @@ class AssistedRecoveryService
             'target_user_id' => $targetUser->getAuthIdentifier(),
             'reason_category' => $reason,
             'reason_text' => $reasonText,
-            'status' => AssistedRecoveryStatus::Requested,
+            'status' => AssistedRecoveryStatus::REQUESTED,
             'requested_at' => now(),
         ]);
     }
@@ -38,7 +38,7 @@ class AssistedRecoveryService
      */
     public function release(AssistedRecovery $recovery, Authenticatable $admin): string
     {
-        if ($recovery->status->isTerminal() || $recovery->status === AssistedRecoveryStatus::Released) {
+        if ($recovery->status->isTerminal() || $recovery->status === AssistedRecoveryStatus::RELEASED) {
             throw new AssistedRecoveryInvalidStatusException($recovery->status);
         }
 
@@ -47,7 +47,7 @@ class AssistedRecoveryService
 
         $recovery->update([
             'executed_by_user_id' => $admin->getAuthIdentifier(),
-            'status' => AssistedRecoveryStatus::Released,
+            'status' => AssistedRecoveryStatus::RELEASED,
             'recovery_token_hash' => Hash::make($plainToken),
             'token_expires_at' => now()->addHours($tokenExpiresHours),
             'released_at' => now(),
@@ -76,7 +76,7 @@ class AssistedRecoveryService
         }
 
         $recovery->update([
-            'status' => AssistedRecoveryStatus::Completed,
+            'status' => AssistedRecoveryStatus::COMPLETED,
             'recovery_token_hash' => null, // invalida o token após uso
             'completed_at' => now(),
         ]);
@@ -101,7 +101,7 @@ class AssistedRecoveryService
 
         $recovery->update([
             'executed_by_user_id' => $admin->getAuthIdentifier(),
-            'status' => AssistedRecoveryStatus::Refused,
+            'status' => AssistedRecoveryStatus::REFUSED,
             'refused_at' => now(),
             'refused_reason_text' => $refusedReasonText,
         ]);

@@ -33,16 +33,16 @@ class AssistedRecoveryControllerTest extends FeatureTestCase
         $response = $this->actingAs($this->user)
             ->postJson('/test-api/mfa/assisted-recoveries', [
                 'target_user_id' => $this->user->id,
-                'reason_category' => AssistedRecoveryReason::DeviceLost->value, // 'device_lost'
+                'reason_category' => AssistedRecoveryReason::DEVICE_LOST->value, // 'device_lost'
                 'reason_text' => 'Lost my phone',
             ]);
 
         $response->assertStatus(Response::HTTP_CREATED)
-            ->assertJsonPath('data.status', AssistedRecoveryStatus::Requested->value);
+            ->assertJsonPath('data.status', AssistedRecoveryStatus::REQUESTED->value);
 
         $this->assertDatabaseHas('assisted_recoveries', [
             'target_user_id' => $this->user->id,
-            'status' => AssistedRecoveryStatus::Requested->value,
+            'status' => AssistedRecoveryStatus::REQUESTED->value,
         ]);
     }
 
@@ -59,8 +59,8 @@ class AssistedRecoveryControllerTest extends FeatureTestCase
     {
         $recovery = AssistedRecovery::create([
             'target_user_id' => $this->user->id,
-            'reason_category' => AssistedRecoveryReason::DeviceLost,
-            'status' => AssistedRecoveryStatus::Requested,
+            'reason_category' => AssistedRecoveryReason::DEVICE_LOST,
+            'status' => AssistedRecoveryStatus::REQUESTED,
             'requested_at' => now(),
         ]);
 
@@ -68,12 +68,12 @@ class AssistedRecoveryControllerTest extends FeatureTestCase
             ->postJson("/test-api/mfa/assisted-recoveries/{$recovery->id}/release");
 
         $response->assertStatus(Response::HTTP_OK)
-            ->assertJsonPath('data.status', AssistedRecoveryStatus::Released->value)
+            ->assertJsonPath('data.status', AssistedRecoveryStatus::RELEASED->value)
             ->assertJsonStructure(['data' => ['recovery_token']]);
 
         $this->assertDatabaseHas('assisted_recoveries', [
             'id' => $recovery->id,
-            'status' => AssistedRecoveryStatus::Released->value,
+            'status' => AssistedRecoveryStatus::RELEASED->value,
         ]);
     }
 
@@ -81,8 +81,8 @@ class AssistedRecoveryControllerTest extends FeatureTestCase
     {
         $recovery = AssistedRecovery::create([
             'target_user_id' => $this->user->id,
-            'reason_category' => AssistedRecoveryReason::DeviceLost,
-            'status' => AssistedRecoveryStatus::Completed,
+            'reason_category' => AssistedRecoveryReason::DEVICE_LOST,
+            'status' => AssistedRecoveryStatus::COMPLETED,
             'requested_at' => now(),
         ]);
 
@@ -101,8 +101,8 @@ class AssistedRecoveryControllerTest extends FeatureTestCase
         $recovery = AssistedRecovery::create([
             'target_user_id' => $this->user->id,
             'executed_by_user_id' => $this->admin->id,
-            'reason_category' => AssistedRecoveryReason::DeviceLost,
-            'status' => AssistedRecoveryStatus::Released,
+            'reason_category' => AssistedRecoveryReason::DEVICE_LOST,
+            'status' => AssistedRecoveryStatus::RELEASED,
             'recovery_token_hash' => Hash::make($plainToken),
             'token_expires_at' => now()->addHour(),
             'requested_at' => now(),
@@ -115,7 +115,7 @@ class AssistedRecoveryControllerTest extends FeatureTestCase
             ]);
 
         $response->assertStatus(Response::HTTP_OK)
-            ->assertJsonPath('data.status', AssistedRecoveryStatus::Completed->value)
+            ->assertJsonPath('data.status', AssistedRecoveryStatus::COMPLETED->value)
             ->assertJsonPath('meta.must_register_factor', true);
 
         $userState = UserState::where('user_id', $this->user->id)->first();
@@ -128,8 +128,8 @@ class AssistedRecoveryControllerTest extends FeatureTestCase
         AssistedRecovery::create([
             'target_user_id' => $this->user->id,
             'executed_by_user_id' => $this->admin->id,
-            'reason_category' => AssistedRecoveryReason::DeviceLost,
-            'status' => AssistedRecoveryStatus::Released,
+            'reason_category' => AssistedRecoveryReason::DEVICE_LOST,
+            'status' => AssistedRecoveryStatus::RELEASED,
             'recovery_token_hash' => Hash::make('correct-token'),
             'token_expires_at' => now()->addHour(),
             'requested_at' => now(),
@@ -151,8 +151,8 @@ class AssistedRecoveryControllerTest extends FeatureTestCase
     {
         $recovery = AssistedRecovery::create([
             'target_user_id' => $this->user->id,
-            'reason_category' => AssistedRecoveryReason::DeviceLost,
-            'status' => AssistedRecoveryStatus::Requested,
+            'reason_category' => AssistedRecoveryReason::DEVICE_LOST,
+            'status' => AssistedRecoveryStatus::REQUESTED,
             'requested_at' => now(),
         ]);
 
@@ -160,6 +160,6 @@ class AssistedRecoveryControllerTest extends FeatureTestCase
             ->postJson("/test-api/mfa/assisted-recoveries/{$recovery->id}/refuse");
 
         $response->assertStatus(Response::HTTP_OK)
-            ->assertJsonPath('data.status', AssistedRecoveryStatus::Refused->value);
+            ->assertJsonPath('data.status', AssistedRecoveryStatus::REFUSED->value);
     }
 }

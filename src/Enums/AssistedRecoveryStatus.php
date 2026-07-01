@@ -6,42 +6,42 @@ namespace Ae3\AuthSecurity\Enums;
 
 enum AssistedRecoveryStatus: string
 {
-    case Requested = 'requested';
-    case InAnalysis = 'in_analysis';
-    case Released = 'released';
-    case Completed = 'completed';
-    case Refused = 'refused';
+    case REQUESTED = 'requested';
+    case IN_ANALYSIS = 'in_analysis';
+    case RELEASED = 'released';
+    case COMPLETED = 'completed';
+    case REFUSED = 'refused';
 
     public function label(): string
     {
         return match ($this) {
-            AssistedRecoveryStatus::Requested => 'Aguardando análise',
-            AssistedRecoveryStatus::InAnalysis => 'Em análise',
-            AssistedRecoveryStatus::Released => 'Liberada — aguardando conclusão pelo usuário',
-            AssistedRecoveryStatus::Completed => 'Concluída',
-            AssistedRecoveryStatus::Refused => 'Recusada',
+            AssistedRecoveryStatus::REQUESTED => 'Aguardando análise',
+            AssistedRecoveryStatus::IN_ANALYSIS => 'Em análise',
+            AssistedRecoveryStatus::RELEASED => 'Liberada — aguardando conclusão pelo usuário',
+            AssistedRecoveryStatus::COMPLETED => 'Concluída',
+            AssistedRecoveryStatus::REFUSED => 'Recusada',
         };
     }
 
     public function isTerminal(): bool
     {
         return match ($this) {
-            AssistedRecoveryStatus::Completed,
-            AssistedRecoveryStatus::Refused => true,
-            AssistedRecoveryStatus::Requested,
-            AssistedRecoveryStatus::InAnalysis,
-            AssistedRecoveryStatus::Released => false,
+            AssistedRecoveryStatus::COMPLETED,
+            AssistedRecoveryStatus::REFUSED => true,
+            AssistedRecoveryStatus::REQUESTED,
+            AssistedRecoveryStatus::IN_ANALYSIS,
+            AssistedRecoveryStatus::RELEASED => false,
         };
     }
 
     public function allowsExecution(): bool
     {
         return match ($this) {
-            AssistedRecoveryStatus::Released => true,
-            AssistedRecoveryStatus::Requested,
-            AssistedRecoveryStatus::InAnalysis,
-            AssistedRecoveryStatus::Completed,
-            AssistedRecoveryStatus::Refused => false,
+            AssistedRecoveryStatus::RELEASED => true,
+            AssistedRecoveryStatus::REQUESTED,
+            AssistedRecoveryStatus::IN_ANALYSIS,
+            AssistedRecoveryStatus::COMPLETED,
+            AssistedRecoveryStatus::REFUSED => false,
         };
     }
 }

@@ -44,7 +44,7 @@ class FactorController extends Controller
         $user = $request->user();
         $factorType = FactorType::from($request->input('type'));
 
-        if ($factorType === FactorType::AuthenticatorApp) {
+        if ($factorType === FactorType::AUTHENTICATOR_APP) {
             $registrationData = $enrollTotp->execute(
                 $user,
                 $request->input('holder_name'),

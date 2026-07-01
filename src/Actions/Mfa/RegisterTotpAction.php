@@ -34,7 +34,7 @@ class RegisterTotpAction
 
         $factor = Factor::create([
             'user_id' => $user->getAuthIdentifier(),
-            'type' => FactorType::AuthenticatorApp,
+            'type' => FactorType::AUTHENTICATOR_APP,
             'secret_encrypted' => $plainSecret,
             'name' => $factorName,
         ]);
