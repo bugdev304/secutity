@@ -12,6 +12,7 @@ use Ae3\AuthSecurity\Enums\FactorType;
 use Ae3\AuthSecurity\Http\Requests\VerifyMfaRequest;
 use Ae3\AuthSecurity\Models\Factor;
 use Ae3\AuthSecurity\Services\MfaSessionService;
+use Ae3\AuthSecurity\Support\IdentifierMasker;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Routing\Controller;
@@ -34,7 +35,7 @@ class MfaVerificationController extends Controller
                 'data' => [
                     'challenge_id' => (string) $factor->id,
                     'channel' => $factorType->value,
-                    'masked_identifier' => $this->maskIdentifier($factor->identifier),
+                    'masked_identifier' => IdentifierMasker::mask($factor->identifier),
                     'expires_at' => now()->addMinutes(config('auth-security.mfa.otp_validity_minutes', 10))->toIso8601String(),
                     'resend_available_at' => now()->addSeconds(config('auth-security.mfa.otp_resend_interval_seconds', 30))->toIso8601String(),
                 ],
@@ -103,7 +104,7 @@ class MfaVerificationController extends Controller
             'data' => [
                 'resent' => true,
                 'channel' => $factor->type->value,
-                'masked_identifier' => $this->maskIdentifier($factor->identifier),
+                'masked_identifier' => IdentifierMasker::mask($factor->identifier),
             ],
             'meta' => [],
         ]);
@@ -129,18 +130,4 @@ class MfaVerificationController extends Controller
         ]);
     }
 
-    private function maskIdentifier(?string $identifier): ?string
-    {
-        if ($identifier === null) {
-            return null;
-        }
-
-        if (str_contains($identifier, '@')) {
-            [$local, $domain] = explode('@', $identifier, 2);
-
-            return substr($local, 0, 2).str_repeat('*', max(0, strlen($local) - 2)).'@'.$domain;
-        }
-
-        return str_repeat('*', max(0, strlen($identifier) - 4)).substr($identifier, -4);
-    }
 }

@@ -32,6 +32,10 @@ class ChangePasswordAction
 
         $user->forceFill(['password' => $hashedPassword])->save();
 
+        if (method_exists($user, 'tokens')) {
+            $user->tokens()->delete();
+        }
+
         $this->passwordPolicyService->record($user, $hashedPassword);
 
         UserState::updateOrCreate(

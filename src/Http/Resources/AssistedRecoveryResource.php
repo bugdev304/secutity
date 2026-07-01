@@ -23,6 +23,7 @@ class AssistedRecoveryResource extends JsonResource
             'released_at' => $this->released_at?->toIso8601String(),
             'completed_at' => $this->completed_at?->toIso8601String(),
             'refused_at' => $this->refused_at?->toIso8601String(),
+            'refused_reason_text' => $this->refused_reason_text,
         ];
     }
 }

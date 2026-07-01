@@ -19,6 +19,7 @@ class OrganizationPolicyResource extends JsonResource
             'role_id' => $this->role_id,
             'context' => $this->context,
             'requires_mfa' => $this->requires_mfa,
+            'source' => $this->context !== null ? 'policy' : 'inherited',
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];
     }

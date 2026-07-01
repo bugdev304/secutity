@@ -68,4 +68,18 @@ class PasswordControllerTest extends FeatureTestCase
         $this->assertNotEmpty($this->auditLogger->logged);
         $this->assertSame('password.changed', $this->auditLogger->logged[0]['event']);
     }
+
+    public function test_change_password_revokes_existing_tokens(): void
+    {
+        $this->user->createToken('session-outros-dispositivos');
+
+        $this->assertCount(1, $this->user->fresh()->tokens);
+
+        $this->postJson('/test-api/password', [
+            'new_password' => 'NewPassword9!',
+            'new_password_confirmation' => 'NewPassword9!',
+        ]);
+
+        $this->assertCount(0, $this->user->fresh()->tokens);
+    }
 }

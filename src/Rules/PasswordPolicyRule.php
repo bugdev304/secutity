@@ -40,7 +40,7 @@ class PasswordPolicyRule implements ValidationRule
             $classCount++;
         }
         if ($classCount < $classesRequired) {
-            $fail(__('auth-security::auth-security.password_violation_classes_required', ['required' => $classesRequired]));
+            $fail(__('auth-security.password_violation_classes_required', ['required' => $classesRequired]));
         }
 
         if ($this->user === null) {
@@ -59,7 +59,7 @@ class PasswordPolicyRule implements ValidationRule
 
         foreach ($recentHashes as $storedHash) {
             if (Hash::check($password, $storedHash)) {
-                $fail(__('auth-security::auth-security.password_violation_history'));
+                $fail(__('auth-security.password_violation_history'));
 
                 return;
             }

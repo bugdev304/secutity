@@ -16,9 +16,9 @@ class RefuseAssistedRecoveryAction
         private readonly MfaAuditLogger $auditLogger,
     ) {}
 
-    public function execute(AssistedRecovery $recovery, Authenticatable $admin): void
+    public function execute(AssistedRecovery $recovery, Authenticatable $admin, ?string $refusedReasonText = null): void
     {
-        $this->assistedRecoveryService->refuse($recovery, $admin);
+        $this->assistedRecoveryService->refuse($recovery, $admin, $refusedReasonText);
 
         $this->auditLogger->logEvent('assisted_recovery.refused', [
             'recovery_id' => $recovery->id,

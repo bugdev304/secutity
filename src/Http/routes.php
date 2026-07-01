@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use Ae3\AuthSecurity\Http\Controllers\AccountController;
 use Ae3\AuthSecurity\Http\Controllers\AssistedRecoveryController;
 use Ae3\AuthSecurity\Http\Controllers\FactorController;
 use Ae3\AuthSecurity\Http\Controllers\MfaContactController;
@@ -22,18 +23,25 @@ Route::prefix('mfa')->group(function (): void {
     Route::get('factors/alternatives', [FactorController::class, 'alternatives']);
 
     // Verificação (challenge + verify)
-    Route::post('factors/{factor}/challenge', [MfaVerificationController::class, 'challenge']);
-    Route::post('factors/{factor}/challenge/resend', [MfaVerificationController::class, 'resend']);
-    Route::post('verify', [MfaVerificationController::class, 'verify']);
-    Route::post('recovery-codes/verify', [MfaVerificationController::class, 'verifyRecovery']);
+    Route::post('factors/{factor}/challenge', [MfaVerificationController::class, 'challenge'])
+        ->middleware('throttle:auth-security:send-otp');
+    Route::post('factors/{factor}/challenge/resend', [MfaVerificationController::class, 'resend'])
+        ->middleware('throttle:auth-security:send-otp');
+    Route::post('verify', [MfaVerificationController::class, 'verify'])
+        ->middleware('throttle:auth-security:verify');
+    Route::post('recovery-codes/verify', [MfaVerificationController::class, 'verifyRecovery'])
+        ->middleware('throttle:auth-security:verify');
 
     // Códigos de recuperação
     Route::get('recovery-codes', [RecoveryCodeController::class, 'show']);
-    Route::post('recovery-codes', [RecoveryCodeController::class, 'store']);
+    Route::post('recovery-codes', [RecoveryCodeController::class, 'store'])
+        ->middleware('throttle:auth-security:generate-recovery');
 
     // Recuperação assistida
-    Route::post('assisted-recoveries', [AssistedRecoveryController::class, 'store']);
-    Route::post('assisted-recoveries/{recovery}/release', [AssistedRecoveryController::class, 'release']);
+    Route::post('assisted-recoveries', [AssistedRecoveryController::class, 'store'])
+        ->middleware('throttle:auth-security:assisted-recovery');
+    Route::post('assisted-recoveries/{recovery}/release', [AssistedRecoveryController::class, 'release'])
+        ->middleware('throttle:auth-security:assisted-recovery');
     Route::post('assisted-recoveries/complete', [AssistedRecoveryController::class, 'complete']);
     Route::post('assisted-recoveries/{recovery}/refuse', [AssistedRecoveryController::class, 'refuse']);
 
@@ -42,6 +50,9 @@ Route::prefix('mfa')->group(function (): void {
 // Políticas de organização
 Route::get('organization-policies', [OrganizationPolicyController::class, 'index']);
 Route::put('organization-policies', [OrganizationPolicyController::class, 'upsert']);
+
+// Contas
+Route::post('accounts/{userId}/unlock', [AccountController::class, 'unlock']);
 
 // Senha
 Route::post('password', [PasswordController::class, 'change']);

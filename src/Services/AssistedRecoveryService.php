@@ -93,7 +93,7 @@ class AssistedRecoveryService
     /**
      * Recusa a recuperação. Só é possível quando status não é terminal.
      */
-    public function refuse(AssistedRecovery $recovery, Authenticatable $admin): void
+    public function refuse(AssistedRecovery $recovery, Authenticatable $admin, ?string $refusedReasonText = null): void
     {
         if ($recovery->status->isTerminal()) {
             throw new AssistedRecoveryInvalidStatusException($recovery->status);
@@ -103,6 +103,7 @@ class AssistedRecoveryService
             'executed_by_user_id' => $admin->getAuthIdentifier(),
             'status' => AssistedRecoveryStatus::Refused,
             'refused_at' => now(),
+            'refused_reason_text' => $refusedReasonText,
         ]);
 
         UserState::updateOrCreate(

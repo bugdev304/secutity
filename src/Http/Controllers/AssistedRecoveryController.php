@@ -82,7 +82,7 @@ class AssistedRecoveryController extends Controller
         AssistedRecovery $recovery,
         RefuseAssistedRecoveryAction $refuseRecovery,
     ): JsonResponse {
-        $refuseRecovery->execute($recovery, $request->user());
+        $refuseRecovery->execute($recovery, $request->user(), $request->input('reason_text'));
 
         return response()->json([
             'data' => new AssistedRecoveryResource($recovery->fresh()),

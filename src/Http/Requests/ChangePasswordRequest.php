@@ -12,6 +12,7 @@ class ChangePasswordRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'password' => ['required', 'string', 'current_password:sanctum'],
             'new_password' => ['required', 'string', 'confirmed', new PasswordPolicyRule($this->user())],
         ];
     }

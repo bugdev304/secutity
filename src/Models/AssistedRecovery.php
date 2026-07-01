@@ -27,6 +27,7 @@ class AssistedRecovery extends AuthSecurityModel
         'released_at',
         'completed_at',
         'refused_at',
+        'refused_reason_text',
     ];
 
     protected function casts(): array
