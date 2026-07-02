@@ -21,6 +21,10 @@ abstract class AuthSecurityModel extends Model
             return $tableName;
         }
 
+        if (str_starts_with($tableName, "{$schema}.")) {
+            return $tableName;
+        }
+
         return "{$schema}.{$tableName}";
     }
 }
