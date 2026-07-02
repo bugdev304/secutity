@@ -20,12 +20,9 @@ class OrganizationPolicy extends AuthSecurityModel
         'updated_by_user_id',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'requires_mfa' => 'boolean',
-        ];
-    }
+    protected $casts = [
+        'requires_mfa' => 'boolean',
+    ];
 
     public function scopeForTenant(Builder $query, string $tenantType, int|string $tenantId): Builder
     {

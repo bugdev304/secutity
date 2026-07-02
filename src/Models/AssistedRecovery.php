@@ -30,18 +30,15 @@ class AssistedRecovery extends AuthSecurityModel
         'refused_reason_text',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'reason_category' => AssistedRecoveryReason::class,
-            'status' => AssistedRecoveryStatus::class,
-            'token_expires_at' => 'datetime',
-            'requested_at' => 'datetime',
-            'released_at' => 'datetime',
-            'completed_at' => 'datetime',
-            'refused_at' => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'reason_category' => AssistedRecoveryReason::class,
+        'status' => AssistedRecoveryStatus::class,
+        'token_expires_at' => 'datetime',
+        'requested_at' => 'datetime',
+        'released_at' => 'datetime',
+        'completed_at' => 'datetime',
+        'refused_at' => 'datetime',
+    ];
 
     public function scopePending(Builder $query): Builder
     {

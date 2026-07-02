@@ -24,13 +24,10 @@ class RecoveryCode extends AuthSecurityModel
 
     protected $hidden = ['code_hash'];
 
-    protected function casts(): array
-    {
-        return [
-            'invalidation_reason' => RecoveryCodeInvalidationReason::class,
-            'used_at' => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'invalidation_reason' => RecoveryCodeInvalidationReason::class,
+        'used_at' => 'datetime',
+    ];
 
     public function scopeAvailable(Builder $query): Builder
     {

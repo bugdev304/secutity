@@ -20,16 +20,13 @@ class UserState extends AuthSecurityModel
         'recovery_refused_at',
     ];
 
-    protected function casts(): array
-    {
-        return [
-            'password_changed_at' => 'datetime',
-            'account_locked_at' => 'datetime',
-            'account_unlocked_at' => 'datetime',
-            'must_register_factor' => 'boolean',
-            'recovery_refused_at'  => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'password_changed_at' => 'datetime',
+        'account_locked_at' => 'datetime',
+        'account_unlocked_at' => 'datetime',
+        'must_register_factor' => 'boolean',
+        'recovery_refused_at' => 'datetime',
+    ];
 
     public function isLocked(): bool
     {

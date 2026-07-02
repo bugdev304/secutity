@@ -24,15 +24,12 @@ class Factor extends AuthSecurityModel
 
     protected $hidden = ['secret_encrypted'];
 
-    protected function casts(): array
-    {
-        return [
-            'type' => FactorType::class,
-            'secret_encrypted' => 'encrypted',
-            'confirmed_at' => 'datetime',
-            'last_used_at' => 'datetime',
-        ];
-    }
+    protected $casts = [
+        'type' => FactorType::class,
+        'secret_encrypted' => 'encrypted',
+        'confirmed_at' => 'datetime',
+        'last_used_at' => 'datetime',
+    ];
 
     public function isConfirmed(): bool
     {
