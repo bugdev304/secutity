@@ -6,6 +6,7 @@ namespace Ae3\AuthSecurity\Actions\Mfa;
 
 use Ae3\AuthSecurity\Contracts\MfaAuditLogger;
 use Ae3\AuthSecurity\Models\Factor;
+use Ae3\AuthSecurity\Models\UserState;
 use Ae3\AuthSecurity\Services\OtpService;
 use Ae3\AuthSecurity\Services\TotpService;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -33,6 +34,11 @@ class ConfirmFactorEnrollmentAction
         }
 
         $factor->update(['confirmed_at' => now()]);
+
+        UserState::updateOrCreate(
+            ['user_id' => $user->getAuthIdentifier()],
+            ['must_register_factor' => false],
+        );
 
         $this->auditLogger->logEvent('mfa.factor.enrolled', [
             'user_id' => $user->getAuthIdentifier(),
