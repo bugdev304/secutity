@@ -10,7 +10,7 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'schema' => 'auth_security',
+    'schema' => '',
     'user_model' => null, // ex.: App\Models\User::class — a app consumidora preenche
 
     /*

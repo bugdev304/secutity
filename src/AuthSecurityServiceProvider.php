@@ -121,7 +121,7 @@ class AuthSecurityServiceProvider extends ServiceProvider
             __DIR__.'/../config/auth-security.php' => config_path('auth-security.php'),
         ], 'auth-security-config');
 
-        $this->publishesMigrations([
+        $this->publishes([
             __DIR__.'/../database/migrations' => database_path('migrations'),
         ], 'auth-security-migrations');
 
@@ -182,14 +182,21 @@ class AuthSecurityServiceProvider extends ServiceProvider
 
     private function bootExceptionRendering(): void
     {
-        $this->app->make('Illuminate\Contracts\Debug\ExceptionHandler')
-            ->renderable(function (AuthSecurityException $exception, Request $request) {
-                if (! $request->expectsJson()) {
-                    return null;
-                }
+        $handler = $this->app->make('Illuminate\Contracts\Debug\ExceptionHandler');
 
-                return $this->renderAuthSecurityException($exception, $request);
-            });
+        // Alguns adapters (ex.: Collision, dependendo da versão) não expõem renderable().
+        // Sem essa guarda, o boot do provider quebra em apps que os usam.
+        if (! method_exists($handler, 'renderable')) {
+            return;
+        }
+
+        $handler->renderable(function (AuthSecurityException $exception, Request $request) {
+            if (! $request->expectsJson()) {
+                return null;
+            }
+
+            return $this->renderAuthSecurityException($exception, $request);
+        });
     }
 
     private function renderAuthSecurityException(AuthSecurityException $exception, Request $request): JsonResponse
