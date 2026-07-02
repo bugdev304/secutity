@@ -84,13 +84,22 @@ class AuthSecurityServiceProvider extends ServiceProvider
         $this->bootExceptionRendering();
     }
 
-    /** Registra as rotas do pacote sob um prefixo configurável. Chamar no routes/api.php da app. */
-    public static function routes(?string $prefix = null, array $middleware = []): void
+    /**
+     * Registra as rotas do pacote sob um prefixo configurável. Chamar no routes/api.php da app.
+     *
+     * @param  ?string  $guard  Guard de autenticação (ex.: 'sanctum', 'api' para Passport). Passe null
+     *                          para não aplicar nenhum guard automaticamente — útil quando o middleware
+     *                          de autenticação já vem via $middleware.
+     */
+    public static function routes(?string $prefix = null, array $middleware = [], ?string $guard = null): void
     {
         $prefix = $prefix ?? config('auth-security.routes.prefix', 'auth-security');
+        $guard = $guard ?? config('auth-security.routes.guard', 'sanctum');
+
+        $baseMiddleware = $guard !== null ? ['api', "auth:{$guard}"] : ['api'];
 
         Route::prefix($prefix)
-            ->middleware(array_merge(['api', 'auth:sanctum'], $middleware))
+            ->middleware(array_merge($baseMiddleware, $middleware))
             ->group(__DIR__.'/Http/routes.php');
     }
 

@@ -100,6 +100,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Rotas
+    |--------------------------------------------------------------------------
+    | Aplicados por AuthSecurityServiceProvider::routes() quando o prefixo/guard
+    | não são passados explicitamente na chamada.
+    */
+
+    'routes' => [
+        'prefix' => 'auth-security',
+        'guard' => 'sanctum', // ex.: 'api' para Passport, ou null para não aplicar guard automaticamente
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Cache
     |--------------------------------------------------------------------------
     */

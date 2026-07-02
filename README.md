@@ -135,9 +135,13 @@ use Ae3\AuthSecurity\AuthSecurityServiceProvider;
 
 AuthSecurityServiceProvider::routes(
     prefix: 'v1',           // prefixo adicional — rotas ficam em /v1/mfa/*, /v1/organization-policies, etc.
-    middleware: [],         // middlewares extras além de ['api', 'auth:sanctum']
+    middleware: [],         // middlewares extras além de ['api', "auth:{$guard}"]
+    guard: 'sanctum',       // guard de autenticação — 'api' para Passport, ou null pra não aplicar nenhum
 );
 ```
+
+`prefix` e `guard` também podem ser fixados uma vez em `config('auth-security.routes')`, sem precisar
+passar em toda chamada.
 
 ### 2. Registrar os middlewares (opcional — já registrados via alias)
 
