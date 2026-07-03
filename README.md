@@ -177,6 +177,53 @@ class User extends Authenticatable
 }
 ```
 
+### 4. Integrar o bloqueio de conta ao seu fluxo de login
+
+**O pacote não intercepta o login sozinho** — ele não sabe quando uma tentativa de autenticação
+aconteceu, porque login (verificação de senha) é responsabilidade da sua aplicação, não deste
+pacote. Você precisa chamar as duas pontas manualmente, no seu próprio controller/action de login:
+
+```php
+use Ae3\AuthSecurity\Actions\Account\RecordFailedLoginAction;
+use Ae3\AuthSecurity\Services\LockoutService;
+use Illuminate\Support\Facades\Hash;
+
+class LoginController extends Controller
+{
+    public function store(
+        LoginRequest $request,
+        RecordFailedLoginAction $recordFailedLogin,
+        LockoutService $lockoutService,
+    ) {
+        $user = User::where('email', $request->input('email'))->firstOrFail();
+
+        if (! Hash::check($request->input('password'), $user->password)) {
+            // Lança AccountLockedException se atingir o limiar configurado em
+            // config('auth-security.lockout') — deixe isso subir pro seu exception handler.
+            $recordFailedLogin->execute($user);
+
+            return response()->json(['message' => 'Credenciais inválidas.'], 401);
+        }
+
+        // Login bem-sucedido: zera o contador de tentativas falhas.
+        $lockoutService->resetAttempts($user);
+
+        // ... emitir o token Sanctum/Passport normalmente
+    }
+}
+```
+
+**Duas chamadas, dois momentos:**
+
+| Momento | O que chamar | Efeito |
+|---|---|---|
+| Senha incorreta | `RecordFailedLoginAction::execute($user)` | Incrementa o contador; bloqueia e lança `AccountLockedException` ao atingir `lockout.max_attempts` |
+| Login bem-sucedido | `LockoutService::resetAttempts($user)` | Zera o contador — sem isso, tentativas antigas continuam somando em janelas futuras |
+
+Sem a segunda chamada, o contador de tentativas falhas nunca é resetado por sucesso — só expira
+sozinho depois de `lockout.window_minutes`, o que pode gerar bloqueios inesperados mesmo após
+logins corretos no meio do caminho.
+
 ---
 
 ## Contratos
@@ -360,6 +407,37 @@ Todos os endpoints requerem autenticação Sanctum (`auth:sanctum`).
 |---|---|---|
 | `POST` | `{prefix}/password` | Alterar senha com validação de política |
 
+**`POST /password` já valida a política automaticamente** (via `ChangePasswordRequest`, que usa
+`PasswordPolicyRule` internamente). Mas **esse é o único lugar do pacote onde isso acontece** — se
+sua app tem outros pontos que definem senha (cadastro de usuário, criação de conta pelo admin,
+importação em massa, etc.), você precisa aplicar `PasswordPolicyRule` manualmente nesses
+formulários. O pacote não intercepta criação de usuário, porque isso não é responsabilidade dele.
+
+```php
+use Ae3\AuthSecurity\Rules\PasswordPolicyRule;
+
+class RegisterUserRequest extends FormRequest
+{
+    public function rules(): array
+    {
+        return [
+            'name'     => ['required', 'string', 'max:255'],
+            'email'    => ['required', 'email', 'unique:users,email'],
+            // Sem usuário ainda (cadastro novo) — passe null, o histórico é pulado automaticamente.
+            'password' => ['required', 'string', 'confirmed', new PasswordPolicyRule()],
+        ];
+    }
+}
+```
+
+Se o formulário for de troca de senha de um usuário **já existente** (fora do endpoint `/password`
+do pacote — ex.: reset de senha via link de e-mail), passe o usuário pro construtor pra também
+verificar o histórico:
+
+```php
+'new_password' => ['required', 'string', 'confirmed', new PasswordPolicyRule($user)],
+```
+
 ---
 
 ## Middlewares
@@ -527,23 +605,30 @@ Resposta da rota:
 ```json
 {
   "data": [
-    { "channel": "email", "identifier": "pablo@example.com", "label": "E-mail principal" },
-    { "channel": "sms",   "identifier": "+5511999999999",     "label": "Celular" }
+    { "channel": "email", "masked_identifier": "pa***@example.com", "label": "E-mail principal", "contact_token": "9f2a1c...e31" },
+    { "channel": "sms",   "masked_identifier": "*******9999",        "label": "Celular",          "contact_token": "7bd0f4...a02" }
   ],
   "meta": {}
 }
 ```
 
-Se o User não implementar a interface, a rota retorna `data: []` sem erro. O `identifier` é retornado sem mascaramento — o usuário está autenticado e escolhendo seu próprio contato.
+Se o User não implementar a interface, a rota retorna `data: []` sem erro. **O `identifier` real nunca é
+exposto** — mesmo com o usuário autenticado escolhendo seu próprio contato, a resposta traz só
+`masked_identifier` (via `IdentifierMasker`) e um `contact_token` opaco (HMAC de `channel + identifier`,
+gerado por `ContactTokenizer`). É esse token, não o identifier, que o front deve enviar de volta.
 
 Fluxo recomendado:
 
 ```
-1. GET  /mfa/contacts               → lista contatos do usuário
-2. Usuário escolhe qual usar
-3. POST /mfa/factors                → { type, identifier, name }
+1. GET  /mfa/contacts                 → lista contatos mascarados + contact_token
+2. Usuário escolhe qual contact_token usar
+3. POST /mfa/factors                  → { type, contact_token, name }
 4. POST /mfa/factors/{factor}/confirm → { code }
 ```
+
+O backend resolve o `contact_token` de volta pro identifier real internamente
+(`ContactTokenizer::resolve()`) — o front nunca manda nem vê o e-mail/telefone em texto plano
+nessa etapa.
 
 O campo `name` (livre) permite ao usuário identificar cada fator na listagem — útil quando há múltiplos fatores do mesmo tipo.
 
