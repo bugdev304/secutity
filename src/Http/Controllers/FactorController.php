@@ -86,8 +86,15 @@ class FactorController extends Controller
         Factor $factor,
         ConfirmFactorEnrollmentAction $confirmEnrollment,
     ): JsonResponse {
+        $user = $request->user();
+
+        abort_if(
+            (string) $factor->user_id !== (string) $user->getAuthIdentifier(),
+            Response::HTTP_NOT_FOUND,
+        );
+
         $confirmedFactor = $confirmEnrollment->execute(
-            $request->user(),
+            $user,
             $factor,
             $request->input('code'),
         );
@@ -107,6 +114,12 @@ class FactorController extends Controller
         MfaContextResolver $contextResolver,
     ): JsonResponse {
         $user = $request->user();
+
+        abort_if(
+            (string) $factor->user_id !== (string) $user->getAuthIdentifier(),
+            Response::HTTP_NOT_FOUND,
+        );
+
         $tenant = $tenantResolver->tenantOf($user);
         $roles = $roleResolver->rolesOf($user);
         $context = $contextResolver->contextOf($request);

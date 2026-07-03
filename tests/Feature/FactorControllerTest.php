@@ -9,6 +9,7 @@ use Ae3\AuthSecurity\Enums\MfaChannel;
 use Ae3\AuthSecurity\Models\Factor;
 use Ae3\AuthSecurity\Services\OtpService;
 use Ae3\AuthSecurity\Support\ContactTokenizer;
+use Ae3\AuthSecurity\Tests\Support\TestUser;
 use Symfony\Component\HttpFoundation\Response;
 
 class FactorControllerTest extends FeatureTestCase
@@ -132,6 +133,31 @@ class FactorControllerTest extends FeatureTestCase
         $this->assertNotNull(Factor::find($factor->id)->confirmed_at);
     }
 
+    public function test_confirm_returns_not_found_for_factor_owned_by_another_user(): void
+    {
+        $victim = TestUser::create([
+            'email' => 'victim@example.com',
+            'password' => bcrypt('Password1!Abc'),
+        ]);
+
+        $factor = Factor::create([
+            'user_id' => $victim->id,
+            'type' => FactorType::EMAIL,
+            'identifier' => 'victim@example.com',
+            'confirmed_at' => null,
+        ]);
+
+        $otpService = $this->app->make(OtpService::class);
+        $code = $otpService->generate($factor);
+
+        $response = $this->postJson("/test-api/mfa/factors/{$factor->id}/confirm", [
+            'code' => $code,
+        ]);
+
+        $response->assertStatus(Response::HTTP_NOT_FOUND);
+        $this->assertNull(Factor::find($factor->id)->confirmed_at);
+    }
+
     public function test_confirm_rejects_wrong_code_after_otp_generated(): void
     {
         $factor = Factor::create([
@@ -169,6 +195,26 @@ class FactorControllerTest extends FeatureTestCase
 
         $response->assertStatus(Response::HTTP_NO_CONTENT);
         $this->assertDatabaseMissing('factors', ['id' => $factor->id]);
+    }
+
+    public function test_destroy_returns_not_found_for_factor_owned_by_another_user(): void
+    {
+        $victim = TestUser::create([
+            'email' => 'victim@example.com',
+            'password' => bcrypt('Password1!Abc'),
+        ]);
+
+        $factor = Factor::create([
+            'user_id' => $victim->id,
+            'type' => FactorType::EMAIL,
+            'identifier' => 'victim@example.com',
+            'confirmed_at' => now(),
+        ]);
+
+        $response = $this->deleteJson("/test-api/mfa/factors/{$factor->id}");
+
+        $response->assertStatus(Response::HTTP_NOT_FOUND);
+        $this->assertDatabaseHas('factors', ['id' => $factor->id]);
     }
 
     // ── GET /test-api/mfa/factors/alternatives ──────────────────────────────

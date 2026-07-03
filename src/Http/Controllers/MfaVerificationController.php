@@ -26,6 +26,11 @@ class MfaVerificationController extends Controller
         Factor $factor,
         SendOtpAction $sendOtp,
     ): JsonResponse {
+        abort_if(
+            (string) $factor->user_id !== (string) $request->user()->getAuthIdentifier(),
+            Response::HTTP_NOT_FOUND,
+        );
+
         $factorType = $factor->type;
 
         if ($factorType->isOtp()) {
@@ -69,7 +74,8 @@ class MfaVerificationController extends Controller
     ): JsonResponse {
         $user = $request->user();
         $factorType = FactorType::from($request->input('factor_type'));
-        $factor = Factor::findOrFail($request->input('factor_id'));
+        $factor = Factor::where('user_id', $user->getAuthIdentifier())
+            ->findOrFail($request->input('factor_id'));
         $code = $request->input('code');
 
         match ($factorType) {
@@ -91,6 +97,11 @@ class MfaVerificationController extends Controller
         Factor $factor,
         SendOtpAction $sendOtp,
     ): JsonResponse {
+        abort_if(
+            (string) $factor->user_id !== (string) $request->user()->getAuthIdentifier(),
+            Response::HTTP_NOT_FOUND,
+        );
+
         if (! $factor->type->isOtp()) {
             return response()->json([
                 'message' => 'Resend is not available for this factor type.',
@@ -129,5 +140,4 @@ class MfaVerificationController extends Controller
             'meta' => [],
         ]);
     }
-
 }
