@@ -495,6 +495,57 @@ Retorna `403 MFA_FACTOR_REGISTRATION_REQUIRED` se `UserState.must_register_facto
 
 ---
 
+## CORS (SPA de origem separada)
+
+O pacote é stateless e depende do header customizado `X-Mfa-Session-Token`
+(enviado pelo client em toda requisição que precisa de MFA satisfeito). Se a SPA
+estiver hospedada em uma origem diferente da API (ex.: `app.exemplo.com` chamando
+`api.exemplo.com`), o browser dispara um preflight `OPTIONS` para qualquer
+requisição com headers customizados — sem a configuração de CORS correta, esse
+preflight falha silenciosamente e a requisição real nunca chega ao servidor,
+sem erro visível no código da SPA (só no console de rede do browser).
+
+Configure `config/cors.php` da app consumidora assim:
+
+```php
+return [
+    'paths' => ['api/*', 'auth-security/*'], // ou o prefixo configurado em auth-security.routes.prefix
+
+    'allowed_methods' => ['*'],
+
+    'allowed_origins' => ['https://app.exemplo.com'],
+
+    'allowed_headers' => [
+        'Authorization',          // Bearer token Sanctum
+        'X-Mfa-Session-Token',    // sessão MFA — obrigatório, senão o preflight bloqueia
+        'Content-Type',
+        'Accept',
+    ],
+
+    // Não é necessário expor X-Mfa-Session-Token aqui: o pacote nunca o devolve
+    // como header de resposta. Ele trafega só no body de POST /mfa/verify e
+    // POST /mfa/recovery-codes/verify — o client lê `data.mfa_session_token`
+    // normalmente, sem precisar de Access-Control-Expose-Headers.
+    'exposed_headers' => [],
+
+    'supports_credentials' => false, // true apenas se usar guard baseado em cookie (Sanctum SPA)
+];
+```
+
+### Guard por Bearer token vs. guard por cookie (Sanctum SPA)
+
+- **Bearer token** (`Authorization: Bearer <token>`) — cenário padrão deste
+  pacote. `supports_credentials` pode ficar `false`; o browser não precisa
+  enviar cookies entre origens.
+- **Cookie de sessão** (Sanctum SPA authentication, mesmo domínio raiz) — exige
+  `supports_credentials => true` no CORS e `withCredentials: true` (Axios) /
+  `credentials: 'include'` (fetch) no client, além de `SANCTUM_STATEFUL_DOMAINS`
+  configurado com o domínio da SPA. Nesse modo, o `X-Mfa-Session-Token` continua
+  sendo um header customizado normal — a exigência de credentials é sobre o
+  cookie de sessão do Sanctum, não sobre o token MFA.
+
+---
+
 ## Fluxos de uso
 
 ### Fluxo de login com MFA
