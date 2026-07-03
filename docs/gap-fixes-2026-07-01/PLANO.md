@@ -2,7 +2,7 @@
 
 ## Contexto
 
-Análise comparativa entre `docs/giz-seg-001-mfa-2026-06-24/` e a implementação atual
+Análise comparativa entre os requisitos originais do projeto e a implementação atual
 identificou gaps que podem ser corrigidos sem quebrar o contrato de API existente.
 
 ## Tasks

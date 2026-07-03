@@ -23,7 +23,7 @@ No ambiente, ajuste:
 |---|---|---|
 | `base_url` | `http://127.0.0.1:8000` | URL da app sandbox |
 | `prefix` | `api/v1` | Prefixo das rotas do pacote |
-| `sandbox_email` | `tl@giz.local` | E-mail do usuário de teste |
+| `sandbox_email` | `tl@example.local` | E-mail do usuário de teste |
 | `sandbox_password` | `TestForte!1` | Senha do usuário de teste |
 | `user_id` | `1` | ID do usuário (para recuperação assistida) |
 

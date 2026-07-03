@@ -86,4 +86,4 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 ## Convenção de versões
 
 Este pacote segue [Semantic Versioning](https://semver.org/lang/pt-BR/).
-A versão `1.0.0` será tagueada quando a app GIZ homologar o pacote em staging.
+A versão `1.0.0` será tagueada quando a app consumidora homologar o pacote em staging.

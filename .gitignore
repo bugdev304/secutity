@@ -5,4 +5,4 @@ composer.lock
 coverage/
 .env
 .idea
-docs/giz-*
+docs/client-*
