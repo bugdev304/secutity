@@ -12,6 +12,7 @@ use Ae3\AuthSecurity\Exceptions\AssistedRecoveryInvalidTokenException;
 use Ae3\AuthSecurity\Models\AssistedRecovery;
 use Ae3\AuthSecurity\Models\UserState;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -92,19 +93,21 @@ class AssistedRecoveryService
             throw new AssistedRecoveryInvalidTokenException;
         }
 
-        $recovery->update([
-            'status' => AssistedRecoveryStatus::COMPLETED,
-            'recovery_token_hash' => null, // invalida o token após uso
-            'completed_at' => now(),
-        ]);
+        DB::transaction(function () use ($recovery) {
+            $recovery->update([
+                'status' => AssistedRecoveryStatus::COMPLETED,
+                'recovery_token_hash' => null, // invalida o token após uso
+                'completed_at' => now(),
+            ]);
 
-        // TEC-11: força o cadastro de novo fator antes de liberar o acesso normal
-        UserState::updateOrCreate(
-            ['user_id' => $recovery->target_user_id],
-            ['must_register_factor' => true],
-        );
+            // TEC-11: força o cadastro de novo fator antes de liberar o acesso normal
+            UserState::updateOrCreate(
+                ['user_id' => $recovery->target_user_id],
+                ['must_register_factor' => true],
+            );
 
-        $this->revokeTokens($recovery->target_user_id);
+            $this->revokeTokens($recovery->target_user_id);
+        });
     }
 
     /**
@@ -116,19 +119,21 @@ class AssistedRecoveryService
             throw new AssistedRecoveryInvalidStatusException($recovery->status);
         }
 
-        $recovery->update([
-            'executed_by_user_id' => $admin->getAuthIdentifier(),
-            'status' => AssistedRecoveryStatus::REFUSED,
-            'refused_at' => now(),
-            'refused_reason_text' => $refusedReasonText,
-        ]);
+        DB::transaction(function () use ($recovery, $admin, $refusedReasonText) {
+            $recovery->update([
+                'executed_by_user_id' => $admin->getAuthIdentifier(),
+                'status' => AssistedRecoveryStatus::REFUSED,
+                'refused_at' => now(),
+                'refused_reason_text' => $refusedReasonText,
+            ]);
 
-        UserState::updateOrCreate(
-            ['user_id' => $recovery->target_user_id],
-            ['recovery_refused_at' => now()],
-        );
+            UserState::updateOrCreate(
+                ['user_id' => $recovery->target_user_id],
+                ['recovery_refused_at' => now()],
+            );
 
-        $this->revokeTokens($recovery->target_user_id);
+            $this->revokeTokens($recovery->target_user_id);
+        });
     }
 
     private function revokeTokens(int $userId): void

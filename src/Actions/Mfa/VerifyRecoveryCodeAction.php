@@ -8,6 +8,7 @@ use Ae3\AuthSecurity\Contracts\MfaAuditLogger;
 use Ae3\AuthSecurity\Models\UserState;
 use Ae3\AuthSecurity\Services\RecoveryCodeService;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Facades\DB;
 
 class VerifyRecoveryCodeAction
 {
@@ -18,13 +19,17 @@ class VerifyRecoveryCodeAction
 
     public function execute(Authenticatable $user, string $code): void
     {
-        $recoveryCode = $this->recoveryCodeService->verify($user, $code);
+        $recoveryCode = DB::transaction(function () use ($user, $code) {
+            $recoveryCode = $this->recoveryCodeService->verify($user, $code);
 
-        // TEC-11: pós-recuperação via código, usuário deve re-registrar fator MFA
-        UserState::updateOrCreate(
-            ['user_id' => $user->getAuthIdentifier()],
-            ['must_register_factor' => true],
-        );
+            // TEC-11: pós-recuperação via código, usuário deve re-registrar fator MFA
+            UserState::updateOrCreate(
+                ['user_id' => $user->getAuthIdentifier()],
+                ['must_register_factor' => true],
+            );
+
+            return $recoveryCode;
+        });
 
         $this->auditLogger->logEvent('recovery_codes.used', [
             'user_id' => $user->getAuthIdentifier(),

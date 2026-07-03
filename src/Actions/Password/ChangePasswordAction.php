@@ -8,6 +8,7 @@ use Ae3\AuthSecurity\Contracts\MfaAuditLogger;
 use Ae3\AuthSecurity\Models\UserState;
 use Ae3\AuthSecurity\Services\PasswordPolicyService;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class ChangePasswordAction
@@ -27,18 +28,20 @@ class ChangePasswordAction
 
         $hashedPassword = Hash::make($newPassword);
 
-        $user->forceFill(['password' => $hashedPassword])->save();
+        $userState = DB::transaction(function () use ($user, $hashedPassword) {
+            $user->forceFill(['password' => $hashedPassword])->save();
 
-        if (method_exists($user, 'tokens')) {
-            $user->tokens()->delete();
-        }
+            if (method_exists($user, 'tokens')) {
+                $user->tokens()->delete();
+            }
 
-        $this->passwordPolicyService->record($user, $hashedPassword);
+            $this->passwordPolicyService->record($user, $hashedPassword);
 
-        $userState = UserState::updateOrCreate(
-            ['user_id' => $user->getAuthIdentifier()],
-            ['password_changed_at' => now()],
-        );
+            return UserState::updateOrCreate(
+                ['user_id' => $user->getAuthIdentifier()],
+                ['password_changed_at' => now()],
+            );
+        });
 
         $this->auditLogger->logEvent('password.changed', [
             'user_id' => $user->getAuthIdentifier(),

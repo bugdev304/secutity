@@ -8,6 +8,7 @@ use Ae3\AuthSecurity\Exceptions\PasswordPolicyException;
 use Ae3\AuthSecurity\Models\PasswordHistory;
 use Ae3\AuthSecurity\Models\UserState;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 
 class PasswordPolicyService
@@ -61,22 +62,24 @@ class PasswordPolicyService
 
     public function record(Authenticatable $user, string $hashedPassword): void
     {
-        PasswordHistory::create([
-            'user_id' => $user->getAuthIdentifier(),
-            'password_hash' => $hashedPassword,
-        ]);
+        DB::transaction(function () use ($user, $hashedPassword) {
+            PasswordHistory::create([
+                'user_id' => $user->getAuthIdentifier(),
+                'password_hash' => $hashedPassword,
+            ]);
 
-        $historySize = config('auth-security.password.history_size');
-        if ($historySize > 0) {
-            $identifiersToKeep = PasswordHistory::where('user_id', $user->getAuthIdentifier())
-                ->orderByDesc('created_at')
-                ->limit($historySize)
-                ->pluck('id');
+            $historySize = config('auth-security.password.history_size');
+            if ($historySize > 0) {
+                $identifiersToKeep = PasswordHistory::where('user_id', $user->getAuthIdentifier())
+                    ->orderByDesc('created_at')
+                    ->limit($historySize)
+                    ->pluck('id');
 
-            PasswordHistory::where('user_id', $user->getAuthIdentifier())
-                ->whereNotIn('id', $identifiersToKeep)
-                ->delete();
-        }
+                PasswordHistory::where('user_id', $user->getAuthIdentifier())
+                    ->whereNotIn('id', $identifiersToKeep)
+                    ->delete();
+            }
+        });
     }
 
     public function isExpired(Authenticatable $user): bool

@@ -8,6 +8,7 @@ use Ae3\AuthSecurity\Enums\RecoveryCodeInvalidationReason;
 use Ae3\AuthSecurity\Exceptions\RecoveryCodeInvalidException;
 use Ae3\AuthSecurity\Models\RecoveryCode;
 use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
@@ -31,22 +32,24 @@ class RecoveryCodeService
         $generationId = Str::uuid()->toString();
         $codesCount = config('auth-security.mfa.recovery_codes_count');
 
-        $this->invalidatePreviousGeneration($userId);
+        return DB::transaction(function () use ($userId, $generationId, $codesCount) {
+            $this->invalidatePreviousGeneration($userId);
 
-        $plainCodes = [];
+            $plainCodes = [];
 
-        for ($codeIndex = 0; $codeIndex < $codesCount; $codeIndex++) {
-            $plainCode = $this->generatePlainCode();
-            $plainCodes[] = $plainCode;
+            for ($codeIndex = 0; $codeIndex < $codesCount; $codeIndex++) {
+                $plainCode = $this->generatePlainCode();
+                $plainCodes[] = $plainCode;
 
-            RecoveryCode::create([
-                'user_id' => $userId,
-                'code_hash' => Hash::make($plainCode),
-                'generation_id' => $generationId,
-            ]);
-        }
+                RecoveryCode::create([
+                    'user_id' => $userId,
+                    'code_hash' => Hash::make($plainCode),
+                    'generation_id' => $generationId,
+                ]);
+            }
 
-        return $plainCodes;
+            return $plainCodes;
+        });
     }
 
     public function hasUnusedCodes(Authenticatable $user): bool
