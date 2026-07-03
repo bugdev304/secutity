@@ -15,8 +15,11 @@ class UnlockAccountAction
         private readonly MfaAuditLogger $auditLogger,
     ) {}
 
-    public function execute(Authenticatable $lockedUser, Authenticatable $admin): void
+    public function execute(int $userId, Authenticatable $admin): void
     {
+        $userModel = config('auth-security.user_model');
+        $lockedUser = $userModel::findOrFail($userId);
+
         $this->lockoutService->unlock($lockedUser, $admin);
 
         $this->auditLogger->logEvent('account.unlocked', [

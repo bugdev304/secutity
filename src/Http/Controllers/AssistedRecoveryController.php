@@ -26,12 +26,9 @@ class AssistedRecoveryController extends Controller
         RequestAssistedRecoveryRequest $request,
         RequestAssistedRecoveryAction $requestRecovery,
     ): JsonResponse {
-        $userModel = config('auth-security.user_model');
-        $targetUser = $userModel::find($request->input('target_user_id'))
-            ?? $request->user();
-
         $recovery = $requestRecovery->execute(
-            $targetUser,
+            $request->input('target_user_id'),
+            $request->user(),
             AssistedRecoveryReason::from($request->input('reason_category')),
             $request->input('reason_text'),
         );
@@ -64,12 +61,7 @@ class AssistedRecoveryController extends Controller
         CompleteAssistedRecoveryRequest $request,
         CompleteAssistedRecoveryAction $completeRecovery,
     ): JsonResponse {
-        $recovery = AssistedRecovery::where('target_user_id', $request->user()->getAuthIdentifier())
-            ->where('status', 'released')
-            ->latest()
-            ->firstOrFail();
-
-        $completeRecovery->execute($recovery, $request->input('token'));
+        $recovery = $completeRecovery->execute($request->user(), $request->input('token'));
 
         return response()->json([
             'data' => new AssistedRecoveryResource($recovery->fresh()),

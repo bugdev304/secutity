@@ -17,6 +17,23 @@ use Illuminate\Support\Str;
 
 class AssistedRecoveryService
 {
+    /** Resolve o alvo pelo ID informado; cai para o próprio solicitante quando ausente ou inexistente. */
+    public function resolveTargetUser(int|string|null $targetUserId, Authenticatable $requestingUser): Authenticatable
+    {
+        $userModel = config('auth-security.user_model');
+
+        return ($targetUserId !== null ? $userModel::find($targetUserId) : null) ?? $requestingUser;
+    }
+
+    /** Última recuperação liberada (status Released) para o usuário — usada em complete(). */
+    public function findLatestReleasedFor(Authenticatable $user): AssistedRecovery
+    {
+        return AssistedRecovery::where('target_user_id', $user->getAuthIdentifier())
+            ->where('status', AssistedRecoveryStatus::RELEASED)
+            ->latest()
+            ->firstOrFail();
+    }
+
     public function request(
         Authenticatable $targetUser,
         AssistedRecoveryReason $reason,

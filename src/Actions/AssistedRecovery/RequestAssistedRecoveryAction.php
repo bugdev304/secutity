@@ -18,10 +18,13 @@ class RequestAssistedRecoveryAction
     ) {}
 
     public function execute(
-        Authenticatable $targetUser,
+        int|string|null $targetUserId,
+        Authenticatable $requestingUser,
         AssistedRecoveryReason $reason,
         ?string $reasonText = null,
     ): AssistedRecovery {
+        $targetUser = $this->assistedRecoveryService->resolveTargetUser($targetUserId, $requestingUser);
+
         $recovery = $this->assistedRecoveryService->request($targetUser, $reason, $reasonText);
 
         $this->auditLogger->logEvent('assisted_recovery.requested', [

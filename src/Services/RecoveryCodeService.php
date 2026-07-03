@@ -49,6 +49,13 @@ class RecoveryCodeService
         return $plainCodes;
     }
 
+    public function hasUnusedCodes(Authenticatable $user): bool
+    {
+        return RecoveryCode::where('user_id', $user->getAuthIdentifier())
+            ->whereNull('used_at')
+            ->exists();
+    }
+
     /**
      * Verifica um código de recuperação e o marca como usado.
      * Lança RecoveryCodeInvalidException se nenhum código disponível bater.

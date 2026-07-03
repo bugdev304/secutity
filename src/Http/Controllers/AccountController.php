@@ -18,10 +18,7 @@ class AccountController extends Controller
         int $userId,
         UnlockAccountAction $unlockAccount,
     ): JsonResponse {
-        $userModel = config('auth-security.user_model');
-        $lockedUser = $userModel::findOrFail($userId);
-
-        $unlockAccount->execute($lockedUser, $request->user());
+        $unlockAccount->execute($userId, $request->user());
 
         return response()->json([
             'data' => ['unlocked' => true],

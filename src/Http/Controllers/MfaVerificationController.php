@@ -5,9 +5,8 @@ declare(strict_types=1);
 namespace Ae3\AuthSecurity\Http\Controllers;
 
 use Ae3\AuthSecurity\Actions\Mfa\SendOtpAction;
-use Ae3\AuthSecurity\Actions\Mfa\VerifyOtpAction;
+use Ae3\AuthSecurity\Actions\Mfa\VerifyMfaFactorAction;
 use Ae3\AuthSecurity\Actions\Mfa\VerifyRecoveryCodeAction;
-use Ae3\AuthSecurity\Actions\Mfa\VerifyTotpAction;
 use Ae3\AuthSecurity\Enums\ErrorCode;
 use Ae3\AuthSecurity\Enums\FactorType;
 use Ae3\AuthSecurity\Http\Requests\VerifyMfaRequest;
@@ -68,23 +67,14 @@ class MfaVerificationController extends Controller
     /** POST /mfa/verify */
     public function verify(
         VerifyMfaRequest $request,
-        MfaSessionService $mfaSessionService,
-        VerifyOtpAction $verifyOtp,
-        VerifyTotpAction $verifyTotp,
-        VerifyRecoveryCodeAction $verifyRecoveryCode,
+        VerifyMfaFactorAction $verifyMfaFactor,
     ): JsonResponse {
-        $user = $request->user();
-        $factorType = FactorType::from($request->input('factor_type'));
-        $factor = Factor::where('user_id', $user->getAuthIdentifier())
-            ->findOrFail($request->input('factor_id'));
-        $code = $request->input('code');
-
-        match ($factorType) {
-            FactorType::EMAIL, FactorType::SMS => $verifyOtp->execute($user, $factor, $code),
-            FactorType::AUTHENTICATOR_APP => $verifyTotp->execute($user, $factor, $code),
-        };
-
-        $sessionData = $mfaSessionService->create($user);
+        $sessionData = $verifyMfaFactor->execute(
+            $request->user(),
+            $request->integer('factor_id'),
+            FactorType::from($request->input('factor_type')),
+            $request->input('code'),
+        );
 
         return response()->json([
             'data' => $sessionData,
