@@ -1,0 +1,1042 @@
+openapi: 3.1.0
+
+info:
+  title: ae3/auth-security API
+  version: "1.0.0"
+  description: |
+    Contrato HTTP do pacote `ae3/auth-security` (MFA, política de senha, bloqueio de
+    conta, recuperação assistida e políticas de organização). Todas as rotas exigem
+    autenticação Sanctum, exceto quando explicitamente indicado.
+
+    ## Envelope de resposta
+
+    Respostas de sucesso seguem `{ "data": ..., "meta": {...} }`. Respostas de erro
+    seguem `{ "message": string, "code": string, ...extra }` — o campo `code` é
+    estável e deve ser usado pelo front para lógica condicional (nunca a `message`,
+    que é traduzível).
+
+    ## Sessão MFA
+
+    Após `POST /mfa/verify` ou `POST /mfa/recovery-codes/verify`, o client recebe um
+    `mfa_session_token` que deve ser enviado no header `X-Mfa-Session-Token` em
+    requisições subsequentes que exigem MFA satisfeito (ex.: `GET /mfa/state`).
+
+license:
+  name: Proprietary
+
+servers:
+  - url: "/{prefix}"
+    description: Prefixo configurável via config('auth-security.routes.prefix')
+    variables:
+      prefix:
+        default: auth-security
+
+security:
+  - sanctumAuth: []
+
+tags:
+  - name: MFA State
+  - name: MFA Contacts
+  - name: MFA Factors
+  - name: MFA Verification
+  - name: Recovery Codes
+  - name: Assisted Recovery
+  - name: Organization Policies
+  - name: Accounts
+  - name: Password
+
+paths:
+  /mfa/state:
+    get:
+      tags: [MFA State]
+      summary: Snapshot do estado de autenticação/MFA do usuário autenticado
+      description: |
+        Endpoint de discovery para o front decidir qual fluxo mostrar sem precisar
+        reagir a códigos de erro 403 espalhados pelas outras rotas.
+      parameters:
+        - $ref: '#/components/parameters/MfaSessionTokenHeader'
+      responses:
+        '200':
+          description: Estado atual calculado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MfaState'
+                  meta:
+                    type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /mfa/contacts:
+    get:
+      tags: [MFA Contacts]
+      summary: Lista contatos elegíveis para receber OTP (anonimizados)
+      description: |
+        Identificadores reais nunca são expostos. Cada contato inclui um
+        `contact_token` opaco (HMAC) que deve ser enviado em `POST /mfa/factors`
+        no lugar do identificador em claro.
+      responses:
+        '200':
+          description: Lista de contatos
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MfaContact'
+                  meta:
+                    type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /mfa/factors:
+    get:
+      tags: [MFA Factors]
+      summary: Lista fatores MFA do usuário autenticado
+      responses:
+        '200':
+          description: Lista de fatores
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Factor'
+                  meta:
+                    type: object
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [MFA Factors]
+      summary: Inicia o cadastro de um novo fator MFA
+      description: |
+        Para `type=authenticator_app`, retorna o segredo TOTP e o QR code — o fator
+        só passa a existir de fato após `POST /mfa/factors/{factor}/confirm`.
+        Para `email`/`sms`, `contact_token` (obtido em `GET /mfa/contacts`) é
+        obrigatório e resolve o identificador real no backend.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EnrollFactorRequest'
+      responses:
+        '201':
+          description: Fator criado (pendente de confirmação, exceto TOTP que retorna o segredo)
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    description: Resposta para type=authenticator_app
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          factor_id: { type: integer }
+                          secret: { type: string, description: Segredo TOTP em Base32 }
+                          otpauth_uri: { type: string, format: uri }
+                          qr_code_svg: { type: string, description: SVG inline do QR code }
+                      meta: { type: object }
+                  - type: object
+                    description: Resposta para type=email ou sms
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/Factor'
+                      meta:
+                        type: object
+                        properties:
+                          enrollment_started: { type: boolean }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Validação falhou ou contact_token inválido (INVALID_IDENTIFIER)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /mfa/factors/{factor}/confirm:
+    post:
+      tags: [MFA Factors]
+      summary: Confirma o cadastro de um fator com o código recebido/gerado
+      parameters:
+        - $ref: '#/components/parameters/FactorId'
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+      responses:
+        '200':
+          description: Fator confirmado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/Factor'
+                  meta: { type: object }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Fator não encontrado ou pertence a outro usuário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Código inválido ou expirado (INVALID_CODE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /mfa/factors/{factor}:
+    delete:
+      tags: [MFA Factors]
+      summary: Remove um fator MFA
+      parameters:
+        - $ref: '#/components/parameters/FactorId'
+      responses:
+        '204':
+          description: Fator removido
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Fator não encontrado ou pertence a outro usuário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '409':
+          description: Remoção bloqueada por ser o único fator quando MFA é obrigatório (LAST_FACTOR_REQUIRED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /mfa/factors/alternatives:
+    get:
+      tags: [MFA Factors]
+      summary: Lista fatores alternativos ao fator atualmente em desafio
+      parameters:
+        - name: exclude_factor_id
+          in: query
+          required: false
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Fatores alternativos e disponibilidade de recuperação assistida
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      factors:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Factor'
+                      assisted_recovery_available: { type: boolean }
+                  meta: { type: object }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /mfa/factors/{factor}/challenge:
+    post:
+      tags: [MFA Verification]
+      summary: Dispara (OTP) ou instrui (TOTP/recovery) o desafio de um fator
+      parameters:
+        - $ref: '#/components/parameters/FactorId'
+      responses:
+        '200':
+          description: Desafio iniciado
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    description: Fator OTP (email/sms) — código enviado
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          challenge_id: { type: string }
+                          channel: { type: string }
+                          masked_identifier: { type: string }
+                          expires_at: { type: string, format: date-time }
+                          resend_available_at: { type: string, format: date-time }
+                      meta: { type: object }
+                  - type: object
+                    description: Fator TOTP/recovery — apenas instrução, nada enviado
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          challenge_id: { type: string }
+                          channel: { type: string }
+                          instruction: { type: string }
+                      meta: { type: object }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Fator não encontrado ou pertence a outro usuário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /mfa/factors/{factor}/challenge/resend:
+    post:
+      tags: [MFA Verification]
+      summary: Reenvia o código OTP de um desafio em andamento
+      parameters:
+        - $ref: '#/components/parameters/FactorId'
+      responses:
+        '200':
+          description: Código reenviado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      resent: { type: boolean }
+                      channel: { type: string }
+                      masked_identifier: { type: string }
+                  meta: { type: object }
+        '400':
+          description: Fator não suporta reenvio, ex. TOTP (RESEND_NOT_ALLOWED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Fator não encontrado ou pertence a outro usuário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /mfa/verify:
+    post:
+      tags: [MFA Verification]
+      summary: Verifica o código de um fator (OTP ou TOTP) e abre sessão MFA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [factor_id, factor_type, code]
+              properties:
+                factor_id: { type: integer }
+                factor_type:
+                  $ref: '#/components/schemas/FactorType'
+                code: { type: string }
+      responses:
+        '200':
+          description: Código válido — sessão MFA aberta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MfaSession'
+                  meta: { type: object }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Fator não encontrado ou pertence a outro usuário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Código inválido/expirado (INVALID_CODE, retorna remaining_attempts)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '423':
+          $ref: '#/components/responses/AccountLocked'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /mfa/recovery-codes/verify:
+    post:
+      tags: [MFA Verification]
+      summary: Verifica um código de recuperação e abre sessão MFA
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [code]
+              properties:
+                code: { type: string }
+      responses:
+        '200':
+          description: Código válido — sessão MFA aberta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/MfaSession'
+                  meta: { type: object }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: Código de recuperação inválido ou já usado (INVALID_CODE)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '423':
+          $ref: '#/components/responses/AccountLocked'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /mfa/recovery-codes:
+    get:
+      tags: [Recovery Codes]
+      summary: Metadados da leva atual de códigos de recuperação (nunca os códigos)
+      responses:
+        '200':
+          description: Metadados
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/RecoveryCodeMeta'
+                  meta: { type: object }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      tags: [Recovery Codes]
+      summary: Gera uma nova leva de códigos de recuperação
+      description: |
+        Se já existirem códigos não utilizados, é necessário reenviar com
+        `confirm_invalidation=true` para confirmar a invalidação da leva anterior.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirm_invalidation:
+                  type: boolean
+                  default: false
+      responses:
+        '201':
+          description: Nova leva gerada — os códigos em texto plano só aparecem aqui
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      codes:
+                        type: array
+                        items: { type: string }
+                  meta:
+                    type: object
+                    properties:
+                      warning: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Já existem códigos não utilizados e confirm_invalidation não foi enviado (INVALIDATION_REQUIRED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /mfa/assisted-recoveries:
+    post:
+      tags: [Assisted Recovery]
+      summary: Abre um pedido de recuperação assistida para um usuário (ação administrativa)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestAssistedRecoveryRequest'
+      responses:
+        '201':
+          description: Pedido criado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AssistedRecovery'
+                  meta: { type: object }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /mfa/assisted-recoveries/{recovery}/release:
+    post:
+      tags: [Assisted Recovery]
+      summary: Libera o token de recuperação assistida (ação administrativa)
+      parameters:
+        - $ref: '#/components/parameters/RecoveryId'
+      responses:
+        '200':
+          description: Token liberado — só é exibido nesta resposta
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    allOf:
+                      - $ref: '#/components/schemas/AssistedRecovery'
+                      - type: object
+                        properties:
+                          recovery_token: { type: string }
+                  meta:
+                    type: object
+                    properties:
+                      warning: { type: string }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Pedido não está em status elegível para liberação (INVALID_STATUS)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/responses/TooManyRequests'
+
+  /mfa/assisted-recoveries/complete:
+    post:
+      tags: [Assisted Recovery]
+      summary: Conclui a recuperação assistida usando o token liberado
+      description: |
+        O alvo é sempre o usuário autenticado — o pedido `released` mais recente
+        associado a ele é localizado automaticamente. Ao concluir, a conta é
+        desbloqueada e `must_register_factor` é sinalizado (o usuário perdeu
+        acesso aos fatores antigos).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [token]
+              properties:
+                token: { type: string }
+      responses:
+        '200':
+          description: Recuperação concluída
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AssistedRecovery'
+                  meta:
+                    type: object
+                    properties:
+                      must_register_factor: { type: boolean }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Nenhum pedido liberado encontrado para o usuário
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          description: Token inválido (INVALID_TOKEN) ou expirado (TOKEN_EXPIRED)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /mfa/assisted-recoveries/{recovery}/refuse:
+    post:
+      tags: [Assisted Recovery]
+      summary: Recusa um pedido de recuperação assistida
+      parameters:
+        - $ref: '#/components/parameters/RecoveryId'
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                reason_text:
+                  type: string
+                  nullable: true
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Pedido recusado
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/AssistedRecovery'
+                  meta: { type: object }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Pedido não está em status elegível para recusa (INVALID_STATUS)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /organization-policies:
+    get:
+      tags: [Organization Policies]
+      summary: Lista políticas de MFA efetivas de um tenant
+      parameters:
+        - name: tenant_type
+          in: query
+          required: true
+          schema: { type: string }
+        - name: tenant_id
+          in: query
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Políticas do tenant
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/OrganizationPolicy'
+                  meta: { type: object }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    put:
+      tags: [Organization Policies]
+      summary: Cria ou atualiza a política de MFA de um papel dentro de um tenant
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpsertOrganizationPolicyRequest'
+      responses:
+        '200':
+          description: Política persistida
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    $ref: '#/components/schemas/OrganizationPolicy'
+                  meta: { type: object }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: |
+            Validação falhou, ou a política violaria o piso obrigatório configurado
+            em `auth-security.floor_policy` (BELOW_FLOOR, retorna `conflicts`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /accounts/{userId}/unlock:
+    post:
+      tags: [Accounts]
+      summary: Desbloqueia manualmente uma conta bloqueada (ação administrativa)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Conta desbloqueada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      unlocked: { type: boolean }
+                  meta: { type: object }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /password:
+    post:
+      tags: [Password]
+      summary: Troca a senha do usuário autenticado
+      description: |
+        A força da nova senha é validada pela `PasswordPolicyService` (histórico,
+        lista negra, classes de caracteres) — não pelo FormRequest. Ao trocar, todos
+        os tokens Sanctum do usuário são revogados.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [password, new_password, new_password_confirmation]
+              properties:
+                password:
+                  type: string
+                  description: Senha atual (validada via current_password:sanctum)
+                new_password:
+                  type: string
+                new_password_confirmation:
+                  type: string
+      responses:
+        '200':
+          description: Senha alterada
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      changed: { type: boolean }
+                      password_changed_at: { type: string, format: date-time, nullable: true }
+                  meta: { type: object }
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          description: |
+            `password` incorreta (erro padrão de validação Laravel) ou nova senha
+            fraca (WEAK_PASSWORD, retorna `violations[]`)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  securitySchemes:
+    sanctumAuth:
+      type: http
+      scheme: bearer
+      description: Token de acesso pessoal Laravel Sanctum
+
+  parameters:
+    FactorId:
+      name: factor
+      in: path
+      required: true
+      description: ID do fator (route model binding — 404 se não existir ou pertencer a outro usuário)
+      schema: { type: integer }
+    RecoveryId:
+      name: recovery
+      in: path
+      required: true
+      schema: { type: integer }
+    MfaSessionTokenHeader:
+      name: X-Mfa-Session-Token
+      in: header
+      required: false
+      description: Token de sessão MFA obtido em POST /mfa/verify ou /mfa/recovery-codes/verify
+      schema: { type: string }
+
+  responses:
+    Unauthorized:
+      description: Token Sanctum ausente ou inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    NotFound:
+      description: Recurso não encontrado ou não pertence ao usuário autenticado
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    ValidationError:
+      description: Corpo da requisição inválido
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationErrorBody'
+    TooManyRequests:
+      description: Limite de tentativas excedido (rate limit ou RESEND_RATE_LIMITED)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+    AccountLocked:
+      description: Conta bloqueada por excesso de tentativas (ACCOUNT_LOCKED)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+  schemas:
+    ErrorCode:
+      type: string
+      description: |
+        Catálogo estável de códigos de erro do pacote. Alguns são emitidos por
+        middlewares que rodam em qualquer rota autenticada do pacote
+        (MFA_REQUIRED, MFA_FACTOR_REGISTRATION_REQUIRED, ACCOUNT_LOCKED,
+        PASSWORD_EXPIRED), os demais são específicos de cada endpoint.
+      enum:
+        - MFA_REQUIRED
+        - MFA_FACTOR_REGISTRATION_REQUIRED
+        - ACCOUNT_LOCKED
+        - PASSWORD_EXPIRED
+        - INVALID_CODE
+        - RESEND_RATE_LIMITED
+        - RESEND_NOT_ALLOWED
+        - WEAK_PASSWORD
+        - BELOW_FLOOR
+        - INVALID_IDENTIFIER
+        - LAST_FACTOR_REQUIRED
+        - INVALID_STATUS
+        - INVALID_TOKEN
+        - TOKEN_EXPIRED
+        - INVALIDATION_REQUIRED
+        - AUTH_SECURITY_ERROR
+
+    Error:
+      type: object
+      required: [message, code]
+      properties:
+        message:
+          type: string
+        code:
+          $ref: '#/components/schemas/ErrorCode'
+      additionalProperties: true
+      description: |
+        Campos extras variam por código: `remaining_attempts` (INVALID_CODE),
+        `retry_after_seconds` (RESEND_RATE_LIMITED), `violations[]` (WEAK_PASSWORD),
+        `conflicts[]` (BELOW_FLOOR), `locked_at` (ACCOUNT_LOCKED).
+
+    ValidationErrorBody:
+      type: object
+      properties:
+        message: { type: string }
+        errors:
+          type: object
+          additionalProperties:
+            type: array
+            items: { type: string }
+
+    FactorType:
+      type: string
+      enum: [email, sms, authenticator_app]
+
+    MfaChannel:
+      type: string
+      enum: [email, sms, authenticator_app]
+
+    AssistedRecoveryReason:
+      type: string
+      enum: [device_lost, recovery_codes_lost, device_change, other]
+
+    AssistedRecoveryStatus:
+      type: string
+      enum: [requested, released, completed, refused]
+
+    Factor:
+      type: object
+      properties:
+        id: { type: integer }
+        type:
+          $ref: '#/components/schemas/FactorType'
+        name: { type: string, nullable: true }
+        masked_identifier: { type: string, nullable: true }
+        confirmed_at: { type: string, format: date-time, nullable: true }
+        last_used_at: { type: string, format: date-time, nullable: true }
+        created_at: { type: string, format: date-time, nullable: true }
+
+    MfaContact:
+      type: object
+      properties:
+        channel:
+          $ref: '#/components/schemas/MfaChannel'
+        masked_identifier: { type: string }
+        label: { type: string, nullable: true }
+        contact_token:
+          type: string
+          description: Token opaco (HMAC) que resolve para o identificador real no backend
+
+    MfaState:
+      type: object
+      properties:
+        must_register_factor:
+          type: boolean
+          description: "Usuário precisa cadastrar um novo fator (ex.: após recuperação assistida)"
+        mfa_required:
+          type: boolean
+          description: MFA é obrigatório para este usuário/contexto (papel, tenant, piso)
+        mfa_satisfied:
+          type: boolean
+          description: X-Mfa-Session-Token enviado é válido e pertence ao usuário
+        password_expired:
+          type: boolean
+        account_locked:
+          type: boolean
+        factors:
+          type: array
+          items:
+            $ref: '#/components/schemas/Factor'
+        contacts:
+          type: array
+          items:
+            $ref: '#/components/schemas/MfaContact'
+
+    MfaSession:
+      type: object
+      properties:
+        mfa_session_token:
+          type: string
+        expires_at:
+          type: string
+          format: date-time
+
+    EnrollFactorRequest:
+      type: object
+      required: [type]
+      properties:
+        type:
+          $ref: '#/components/schemas/FactorType'
+        contact_token:
+          type: string
+          nullable: true
+          description: Obrigatório quando type != authenticator_app (obtido em GET /mfa/contacts)
+        name:
+          type: string
+          nullable: true
+          maxLength: 100
+        holder_name:
+          type: string
+          nullable: true
+          maxLength: 255
+          description: Obrigatório quando type = authenticator_app
+
+    RecoveryCodeMeta:
+      type: object
+      properties:
+        generation_id: { type: string, nullable: true }
+        total: { type: integer }
+        remaining: { type: integer }
+        last_generated_at: { type: string, format: date-time, nullable: true }
+
+    RequestAssistedRecoveryRequest:
+      type: object
+      required: [target_user_id, reason_category]
+      properties:
+        target_user_id: { type: integer }
+        reason_category:
+          $ref: '#/components/schemas/AssistedRecoveryReason'
+        reason_text:
+          type: string
+          nullable: true
+          maxLength: 1000
+          description: Obrigatório quando reason_category = other
+
+    AssistedRecovery:
+      type: object
+      properties:
+        id: { type: integer }
+        target_user_id: { type: integer }
+        reason_category:
+          $ref: '#/components/schemas/AssistedRecoveryReason'
+        reason_text: { type: string, nullable: true }
+        status:
+          $ref: '#/components/schemas/AssistedRecoveryStatus'
+        status_label: { type: string }
+        token_expires_at: { type: string, format: date-time, nullable: true }
+        requested_at: { type: string, format: date-time, nullable: true }
+        released_at: { type: string, format: date-time, nullable: true }
+        completed_at: { type: string, format: date-time, nullable: true }
+        refused_at: { type: string, format: date-time, nullable: true }
+        refused_reason_text: { type: string, nullable: true }
+
+    UpsertOrganizationPolicyRequest:
+      type: object
+      required: [tenant_type, tenant_id, role_type, role_id, requires_mfa]
+      properties:
+        tenant_type: { type: string }
+        tenant_id: { type: integer }
+        role_type: { type: string }
+        role_id: { type: integer }
+        requires_mfa: { type: boolean }
+        context:
+          type: string
+          nullable: true
+
+    OrganizationPolicy:
+      type: object
+      properties:
+        id: { type: integer }
+        tenant_type: { type: string }
+        tenant_id: { type: integer }
+        role_type: { type: string }
+        role_id: { type: integer }
+        context: { type: string, nullable: true }
+        requires_mfa: { type: boolean }
+        source:
+          type: string
+          description: Origem efetiva da política (ex. organization, floor)
+        updated_at: { type: string, format: date-time, nullable: true }
