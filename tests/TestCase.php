@@ -6,6 +6,8 @@ namespace Ae3\AuthSecurity\Tests;
 
 use Ae3\AuthSecurity\AuthSecurityServiceProvider;
 use Ae3\AuthSecurity\Facades\AuthSecurity;
+use Ae3\AuthSecurity\Tests\Support\TestUser;
+use Laravel\Sanctum\SanctumServiceProvider;
 use Orchestra\Testbench\TestCase as OrchestraTestCase;
 
 abstract class TestCase extends OrchestraTestCase
@@ -14,6 +16,7 @@ abstract class TestCase extends OrchestraTestCase
     {
         return [
             AuthSecurityServiceProvider::class,
+            SanctumServiceProvider::class,
         ];
     }
 
@@ -32,5 +35,7 @@ abstract class TestCase extends OrchestraTestCase
         $app['config']->set('database.default', 'testing');
         $app['config']->set('cache.default', 'array');
         $app['config']->set('queue.default', 'sync');
+        $app['config']->set('auth.guards.sanctum', ['driver' => 'sanctum', 'provider' => 'users']);
+        $app['config']->set('auth.providers.users.model', TestUser::class);
     }
 }

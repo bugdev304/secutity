@@ -13,10 +13,10 @@ class PasswordControllerTest extends FeatureTestCase
     {
         parent::setUp();
 
-        $this->app['config']->set('auth-security.password_policy.min_length', 8);
-        $this->app['config']->set('auth-security.password_policy.classes_required', 0);
-        $this->app['config']->set('auth-security.password_policy.history_size', 0);
-        $this->app['config']->set('auth-security.password_policy.expiration_days', 0);
+        $this->app['config']->set('auth-security.password.min_length', 8);
+        $this->app['config']->set('auth-security.password.classes_required', 0);
+        $this->app['config']->set('auth-security.password.history_size', 0);
+        $this->app['config']->set('auth-security.password.expiration_days', 0);
     }
 
     // ── POST /test-api/password ──────────────────────────────────────────────
@@ -24,6 +24,7 @@ class PasswordControllerTest extends FeatureTestCase
     public function test_change_password_succeeds(): void
     {
         $response = $this->postJson('/test-api/password', [
+            'password' => 'Password1!Abc',
             'new_password' => 'NewPassword9!',
             'new_password_confirmation' => 'NewPassword9!',
         ]);
@@ -37,9 +38,10 @@ class PasswordControllerTest extends FeatureTestCase
 
     public function test_change_password_rejects_short_password(): void
     {
-        $this->app['config']->set('auth-security.password_policy.min_length', 12);
+        $this->app['config']->set('auth-security.password.min_length', 12);
 
         $response = $this->postJson('/test-api/password', [
+            'password' => 'Password1!Abc',
             'new_password' => 'Short1!',
             'new_password_confirmation' => 'Short1!',
         ]);
@@ -52,6 +54,7 @@ class PasswordControllerTest extends FeatureTestCase
     public function test_change_password_requires_confirmation(): void
     {
         $response = $this->postJson('/test-api/password', [
+            'password' => 'Password1!Abc',
             'new_password' => 'NewPassword9!',
         ]);
 
@@ -61,6 +64,7 @@ class PasswordControllerTest extends FeatureTestCase
     public function test_audit_log_is_recorded_on_change(): void
     {
         $this->postJson('/test-api/password', [
+            'password' => 'Password1!Abc',
             'new_password' => 'NewPassword9!',
             'new_password_confirmation' => 'NewPassword9!',
         ]);
@@ -76,6 +80,7 @@ class PasswordControllerTest extends FeatureTestCase
         $this->assertCount(1, $this->user->fresh()->tokens);
 
         $this->postJson('/test-api/password', [
+            'password' => 'Password1!Abc',
             'new_password' => 'NewPassword9!',
             'new_password_confirmation' => 'NewPassword9!',
         ]);

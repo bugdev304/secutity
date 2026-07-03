@@ -23,6 +23,7 @@ return new class extends Migration
             $table->timestamp('released_at')->nullable();
             $table->timestamp('completed_at')->nullable();
             $table->timestamp('refused_at')->nullable();
+            $table->text('refused_reason_text')->nullable();
             $table->timestamps();
         });
     }

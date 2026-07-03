@@ -24,6 +24,8 @@ class AssistedRecoveryControllerTest extends FeatureTestCase
             'email' => 'admin@example.com',
             'password' => bcrypt('AdminPass1!'),
         ]);
+
+        $this->app['config']->set('auth-security.user_model', TestUser::class);
     }
 
     // ── POST /test-api/mfa/assisted-recoveries ───────────────────────────────

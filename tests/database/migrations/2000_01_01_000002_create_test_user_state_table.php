@@ -18,6 +18,7 @@ return new class extends Migration
             $table->unsignedBigInteger('account_unlocked_by_user_id')->nullable();
             $table->timestamp('account_unlocked_at')->nullable();
             $table->boolean('must_register_factor')->default(false);
+            $table->timestamp('recovery_refused_at')->nullable();
             $table->timestamps();
         });
     }
