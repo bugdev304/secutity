@@ -91,7 +91,7 @@ return [
         'otp_validity_minutes'     => 10,
         'otp_max_attempts'         => 5,
         'otp_resend_interval_seconds' => 30,
-        'otp_resend_max_per_hour'  => 5,
+        'otp_resend_limit'         => 5, // reenvios permitidos por OTP ativo
         'session_ttl_hours'        => 8,
         'recovery_codes_count'     => 10,
     ],

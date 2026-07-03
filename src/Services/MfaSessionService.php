@@ -10,12 +10,11 @@ use Illuminate\Support\Str;
 
 class MfaSessionService
 {
-    private const SESSION_TTL_MINUTES = 480; // 8h
-
     public function create(Authenticatable $user): array
     {
         $token = Str::random(64);
-        $expiresAt = now()->addMinutes(self::SESSION_TTL_MINUTES);
+        $sessionTtlHours = config('auth-security.mfa.session_ttl_hours', 8);
+        $expiresAt = now()->addMinutes($sessionTtlHours * 60);
 
         Cache::store(config('auth-security.cache.driver'))->put(
             $this->cacheKey($token),

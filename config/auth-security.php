@@ -59,6 +59,7 @@ return [
         'otp_max_attempts' => 5,
         'otp_resend_limit' => 3,
         'otp_resend_interval_seconds' => 30,
+        'session_ttl_hours' => 8,
         'recovery_codes_count' => 8,
         'recovery_code_format' => '4-4-4-alpha',
         'totp_algorithm' => 'sha1',
