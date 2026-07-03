@@ -407,11 +407,17 @@ Todos os endpoints requerem autenticação Sanctum (`auth:sanctum`).
 |---|---|---|
 | `POST` | `{prefix}/password` | Alterar senha com validação de política |
 
-**`POST /password` já valida a política automaticamente** (via `ChangePasswordRequest`, que usa
-`PasswordPolicyRule` internamente). Mas **esse é o único lugar do pacote onde isso acontece** — se
-sua app tem outros pontos que definem senha (cadastro de usuário, criação de conta pelo admin,
-importação em massa, etc.), você precisa aplicar `PasswordPolicyRule` manualmente nesses
-formulários. O pacote não intercepta criação de usuário, porque isso não é responsabilidade dele.
+**`POST /password` já valida a política automaticamente** — `ChangePasswordAction` chama
+`PasswordPolicyService::validate()`, que lança `PasswordPolicyException` (→ `WEAK_PASSWORD` +
+`violations[]`) quando a senha não atende tamanho/composição/histórico configurados. `ChangePasswordRequest`
+só valida estrutura (`required`, `confirmed`, `current_password:sanctum`) — a força da senha é
+responsabilidade exclusiva do Action, não do FormRequest, pra manter um único caminho de erro.
+
+Mas **esse é o único lugar do pacote onde a política é aplicada automaticamente** — se sua app tem
+outros pontos que definem senha (cadastro de usuário, criação de conta pelo admin, importação em
+massa, etc.), você precisa aplicar a classe `PasswordPolicyRule` manualmente nesses formulários
+(essa sim é uma `ValidationRule` de FormRequest, para uso fora do pacote). O pacote não intercepta
+criação de usuário, porque isso não é responsabilidade dele.
 
 ```php
 use Ae3\AuthSecurity\Rules\PasswordPolicyRule;
