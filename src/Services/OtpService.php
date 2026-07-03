@@ -44,7 +44,14 @@ class OtpService
         }
 
         if (! Hash::check($code, $storedHash)) {
-            throw new OtpInvalidException;
+            $remainingAttempts = $this->registerFailedAttempt($factor, $cacheDriver);
+
+            if ($remainingAttempts <= 0) {
+                Cache::store($cacheDriver)->forget($otpKey);
+                Cache::store($cacheDriver)->forget($this->metaCacheKey($factor));
+            }
+
+            throw new OtpInvalidException(remainingAttempts: $remainingAttempts);
         }
 
         // Invalidação imediata: OTP é de uso único
@@ -87,6 +94,20 @@ class OtpService
         }
     }
 
+    /** Incrementa o contador de tentativas falhas e retorna quantas restam. */
+    private function registerFailedAttempt(Factor $factor, ?string $cacheDriver): int
+    {
+        $meta = $this->readMeta($factor, $cacheDriver);
+        $meta['attempts']++;
+
+        $validityMinutes = config('auth-security.mfa.otp_validity_minutes', 10);
+        Cache::store($cacheDriver)->put($this->metaCacheKey($factor), $meta, now()->addMinutes($validityMinutes));
+
+        $maxAttempts = config('auth-security.mfa.otp_max_attempts', 5);
+
+        return max(0, $maxAttempts - $meta['attempts']);
+    }
+
     private function storeMeta(Factor $factor, ?string $cacheDriver, bool $isResend, DateTimeInterface $expiresAt): void
     {
         $meta = $this->readMeta($factor, $cacheDriver);
@@ -104,7 +125,7 @@ class OtpService
     {
         return Cache::store($cacheDriver)->get(
             $this->metaCacheKey($factor),
-            ['resend_count' => 0, 'last_sent_at' => 0],
+            ['resend_count' => 0, 'last_sent_at' => 0, 'attempts' => 0],
         );
     }
 

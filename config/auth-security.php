@@ -56,6 +56,7 @@ return [
     'mfa' => [
         'otp_validity_minutes' => 10,
         'otp_length' => 6,
+        'otp_max_attempts' => 5,
         'otp_resend_limit' => 3,
         'otp_resend_interval_seconds' => 30,
         'recovery_codes_count' => 8,

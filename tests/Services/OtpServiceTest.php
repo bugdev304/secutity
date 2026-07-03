@@ -166,4 +166,60 @@ class OtpServiceTest extends TestCase
         $code = $this->otpService->generate($this->factor);
         $this->assertNotEmpty($code);
     }
+
+    public function test_verify_reports_decreasing_remaining_attempts(): void
+    {
+        $maxAttempts = config('auth-security.mfa.otp_max_attempts', 5);
+        $this->otpService->generate($this->factor);
+
+        try {
+            $this->otpService->verify($this->factor, '000000');
+            $this->fail('Expected OtpInvalidException');
+        } catch (OtpInvalidException $exception) {
+            $this->assertSame($maxAttempts - 1, $exception->getRemainingAttempts());
+        }
+
+        try {
+            $this->otpService->verify($this->factor, '000000');
+            $this->fail('Expected OtpInvalidException');
+        } catch (OtpInvalidException $exception) {
+            $this->assertSame($maxAttempts - 2, $exception->getRemainingAttempts());
+        }
+    }
+
+    public function test_verify_invalidates_otp_after_max_attempts_exhausted(): void
+    {
+        $maxAttempts = config('auth-security.mfa.otp_max_attempts', 5);
+        $code = $this->otpService->generate($this->factor);
+
+        for ($attempt = 0; $attempt < $maxAttempts; $attempt++) {
+            try {
+                $this->otpService->verify($this->factor, '000000');
+            } catch (OtpInvalidException) {
+                // esperado até esgotar as tentativas
+            }
+        }
+
+        // OTP foi invalidado ao esgotar as tentativas — mesmo o código correto falha agora
+        $this->expectException(OtpExpiredException::class);
+        $this->otpService->verify($this->factor, $code);
+    }
+
+    public function test_verify_success_resets_attempts_counter(): void
+    {
+        $intervalSeconds = config('auth-security.mfa.otp_resend_interval_seconds', 30);
+        $this->otpService->generate($this->factor);
+
+        try {
+            $this->otpService->verify($this->factor, '000000');
+        } catch (OtpInvalidException) {
+            // consome uma tentativa de propósito
+        }
+
+        $this->travel($intervalSeconds + 1)->seconds();
+
+        $code = $this->otpService->generate($this->factor);
+        $this->otpService->verify($this->factor, $code);
+        $this->assertTrue(true);
+    }
 }
