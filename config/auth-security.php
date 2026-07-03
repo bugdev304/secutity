@@ -10,8 +10,8 @@ return [
     |--------------------------------------------------------------------------
     */
 
-    'schema' => '',
-    'user_model' => null, // ex.: App\Models\User::class — a app consumidora preenche
+    'schema' => env('AUTH_SECURITY_SCHEMA', ''),
+    'user_model' => env('AUTH_SECURITY_USER_MODEL'), // ex.: App\Models\User::class — a app consumidora preenche
 
     /*
     |--------------------------------------------------------------------------
@@ -40,11 +40,11 @@ return [
     */
 
     'password' => [
-        'min_length' => 8,
-        'classes_required' => 3,  // das 4 classes: maiúscula, minúscula, número, especial
-        'common_blacklist' => true,
-        'history_size' => 3,
-        'expiration_days' => 90,
+        'min_length' => env('AUTH_SECURITY_PASSWORD_MIN_LENGTH', 8),
+        'classes_required' => env('AUTH_SECURITY_PASSWORD_CLASSES_REQUIRED', 3),  // das 4 classes: maiúscula, minúscula, número, especial
+        'common_blacklist' => env('AUTH_SECURITY_PASSWORD_COMMON_BLACKLIST', true),
+        'history_size' => env('AUTH_SECURITY_PASSWORD_HISTORY_SIZE', 3),
+        'expiration_days' => env('AUTH_SECURITY_PASSWORD_EXPIRATION_DAYS', 90),
     ],
 
     /*
@@ -54,16 +54,16 @@ return [
     */
 
     'mfa' => [
-        'otp_validity_minutes' => 10,
-        'otp_length' => 6,
-        'otp_max_attempts' => 5,
-        'otp_resend_limit' => 3,
-        'otp_resend_interval_seconds' => 30,
-        'session_ttl_hours' => 8,
-        'recovery_codes_count' => 8,
-        'recovery_code_format' => '4-4-4-alpha',
-        'totp_algorithm' => 'sha1',
-        'totp_issuer' => env('APP_NAME', 'App'), // nome exibido no aplicativo autenticador
+        'otp_validity_minutes' => env('AUTH_SECURITY_OTP_VALIDITY_MINUTES', 10),
+        'otp_length' => env('AUTH_SECURITY_OTP_LENGTH', 6),
+        'otp_max_attempts' => env('AUTH_SECURITY_OTP_MAX_ATTEMPTS', 5),
+        'otp_resend_limit' => env('AUTH_SECURITY_OTP_RESEND_LIMIT', 3),
+        'otp_resend_interval_seconds' => env('AUTH_SECURITY_OTP_RESEND_INTERVAL_SECONDS', 30),
+        'session_ttl_hours' => env('AUTH_SECURITY_SESSION_TTL_HOURS', 8),
+        'recovery_codes_count' => env('AUTH_SECURITY_RECOVERY_CODES_COUNT', 8),
+        'recovery_code_format' => env('AUTH_SECURITY_RECOVERY_CODE_FORMAT', '4-4-4-alpha'),
+        'totp_algorithm' => env('AUTH_SECURITY_TOTP_ALGORITHM', 'sha1'),
+        'totp_issuer' => env('AUTH_SECURITY_TOTP_ISSUER', env('APP_NAME', 'App')), // nome exibido no aplicativo autenticador
     ],
 
     /*
@@ -73,9 +73,9 @@ return [
     */
 
     'lockout' => [
-        'max_attempts' => 5,
-        'window_minutes' => 10,
-        'unlock_strategy' => 'admin_only',
+        'max_attempts' => env('AUTH_SECURITY_LOCKOUT_MAX_ATTEMPTS', 5),
+        'window_minutes' => env('AUTH_SECURITY_LOCKOUT_WINDOW_MINUTES', 10),
+        'unlock_strategy' => env('AUTH_SECURITY_LOCKOUT_UNLOCK_STRATEGY', 'admin_only'),
     ],
 
     /*
@@ -85,7 +85,7 @@ return [
     */
 
     'assisted_recovery' => [
-        'token_expires_hours' => 24,
+        'token_expires_hours' => env('AUTH_SECURITY_ASSISTED_RECOVERY_TOKEN_EXPIRES_HOURS', 24),
     ],
 
     /*
@@ -109,8 +109,8 @@ return [
     */
 
     'routes' => [
-        'prefix' => 'auth-security',
-        'guard' => 'sanctum', // ex.: 'api' para Passport, ou null para não aplicar guard automaticamente
+        'prefix' => env('AUTH_SECURITY_ROUTES_PREFIX', 'auth-security'),
+        'guard' => env('AUTH_SECURITY_ROUTES_GUARD', 'sanctum'), // ex.: 'api' para Passport, ou null para não aplicar guard automaticamente
     ],
 
     /*
@@ -120,9 +120,25 @@ return [
     */
 
     'cache' => [
-        'driver' => null,        // null = usa o driver default da app
-        'key_prefix' => 'auth_security:',
-        'policy_ttl_minutes' => 5, // TTL do cache de políticas efetivas
+        'driver' => env('AUTH_SECURITY_CACHE_DRIVER'), // null = usa o driver default da app
+        'key_prefix' => env('AUTH_SECURITY_CACHE_KEY_PREFIX', 'auth_security:'),
+        'policy_ttl_minutes' => env('AUTH_SECURITY_CACHE_POLICY_TTL_MINUTES', 5), // TTL do cache de políticas efetivas
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Rate limiting
+    |--------------------------------------------------------------------------
+    | Limites por minuto aplicados pelos limiters registrados em
+    | AuthSecurityServiceProvider::bootRateLimiters(), usados pelo middleware
+    | throttle:auth-security:* nas rotas sensíveis (routes.php).
+    */
+
+    'rate_limits' => [
+        'verify_per_minute' => env('AUTH_SECURITY_RATE_LIMIT_VERIFY_PER_MINUTE', 10),
+        'send_otp_per_minute' => env('AUTH_SECURITY_RATE_LIMIT_SEND_OTP_PER_MINUTE', 5),
+        'generate_recovery_per_minute' => env('AUTH_SECURITY_RATE_LIMIT_GENERATE_RECOVERY_PER_MINUTE', 3),
+        'assisted_recovery_per_minute' => env('AUTH_SECURITY_RATE_LIMIT_ASSISTED_RECOVERY_PER_MINUTE', 5),
     ],
 
 ];

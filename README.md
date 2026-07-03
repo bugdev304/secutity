@@ -63,6 +63,12 @@ As tabelas são criadas no schema `auth_security` (PostgreSQL) conforme `config(
 
 ## Configuração
 
+Todo valor operacional (limites, TTLs, tamanhos) é sobrescrevível via `.env` — ver
+[`.env.example`](.env.example) na raiz do pacote para a lista completa de variáveis
+`AUTH_SECURITY_*` e seus defaults. Bindings de classe (resolvers, message sender,
+audit logger) e arrays (`floor_policy.roles_required`) não são env-tuneáveis — publique
+o config e edite direto.
+
 ```php
 // config/auth-security.php (após vendor:publish)
 
