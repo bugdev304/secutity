@@ -1,6 +1,6 @@
 # ae3/auth-security
 
-Pacote Laravel reutilizável que unifica **MFA** (OTP por e-mail/SMS e TOTP), **política de senha forte** e **bloqueio de conta por tentativas**. Projetado para ser consumido via Composer path repository ou Packagist privado.
+Pacote Laravel reutilizável que unifica **MFA** (OTP por e-mail/SMS e TOTP), **política de senha forte** e **bloqueio de conta por tentativas**. Projetado para ser consumido via repositório VCS do Composer apontando para o GitHub.
 
 - PHP 8.2+ / Laravel 10–13
 - Stateless API (sem sessão PHP) — token de sessão MFA via header `X-Mfa-Session-Token`
@@ -26,15 +26,32 @@ Pacote Laravel reutilizável que unifica **MFA** (OTP por e-mail/SMS e TOTP), **
 
 ## Instalação
 
-```bash
-# Via path repository (GIZ / dev local)
-# Em composer.json da app consumidora:
-# "repositories": [{ "type": "path", "url": "../ae3-auth-security" }]
+Repositório público no GitHub — adicione um repositório `vcs` apontando pra ele no
+`composer.json` da app consumidora:
 
-composer require ae3/auth-security
+```json
+// composer.json da app consumidora
+{
+    "repositories": [
+        {
+            "type": "vcs",
+            "url": "https://github.com/bugdev304/secutity.git"
+        }
+    ]
+}
+```
+
+Ainda não há tag de release (`1.0.0` será tagueada após homologação em staging — ver
+["Convenção de versões" no CHANGELOG](CHANGELOG.md)), então instale pinado na branch:
+
+```bash
+composer require ae3/auth-security:dev-dev
 ```
 
 O pacote registra automaticamente o `AuthSecurityServiceProvider` via auto-discovery.
+
+> Testando alterações locais no pacote antes de commitar/dar push? Use path repository
+> — ver [Guia de sandbox](#guia-de-sandbox).
 
 ---
 
@@ -762,7 +779,7 @@ O campo `name` (livre) permite ao usuário identificar cada fator na listagem �
 
 ## Guia de sandbox
 
-Para testar localmente com a GIZ (ou qualquer app consumidora):
+Para testar localmente com a app consumidora:
 
 ### 1. Path repository
 
