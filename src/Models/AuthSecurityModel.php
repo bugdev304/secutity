@@ -11,7 +11,7 @@ abstract class AuthSecurityModel extends Model
 {
     public function getTable(): string
     {
-        $schema = config('auth-security.schema', 'auth_security');
+        $schema = config('auth-security.schema');
         $tableName = isset($this->table)
             ? $this->table
             : Str::snake(Str::pluralStudly(class_basename($this)));

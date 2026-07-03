@@ -41,8 +41,8 @@ class MfaVerificationController extends Controller
                     'challenge_id' => (string) $factor->id,
                     'channel' => $factorType->value,
                     'masked_identifier' => IdentifierMasker::mask($factor->identifier),
-                    'expires_at' => now()->addMinutes(config('auth-security.mfa.otp_validity_minutes', 10))->toIso8601String(),
-                    'resend_available_at' => now()->addSeconds(config('auth-security.mfa.otp_resend_interval_seconds', 30))->toIso8601String(),
+                    'expires_at' => now()->addMinutes(config('auth-security.mfa.otp_validity_minutes'))->toIso8601String(),
+                    'resend_available_at' => now()->addSeconds(config('auth-security.mfa.otp_resend_interval_seconds'))->toIso8601String(),
                 ],
                 'meta' => [],
             ]);

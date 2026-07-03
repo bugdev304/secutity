@@ -13,7 +13,7 @@ class MfaSessionService
     public function create(Authenticatable $user): array
     {
         $token = Str::random(64);
-        $sessionTtlHours = config('auth-security.mfa.session_ttl_hours', 8);
+        $sessionTtlHours = config('auth-security.mfa.session_ttl_hours');
         $expiresAt = now()->addMinutes($sessionTtlHours * 60);
 
         Cache::store(config('auth-security.cache.driver'))->put(
@@ -40,7 +40,7 @@ class MfaSessionService
 
     private function cacheKey(string $token): string
     {
-        $prefix = config('auth-security.cache.key_prefix', 'auth_security:');
+        $prefix = config('auth-security.cache.key_prefix');
 
         return "{$prefix}mfa_session:{$token}";
     }

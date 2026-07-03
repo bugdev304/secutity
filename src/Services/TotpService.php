@@ -28,7 +28,7 @@ class TotpService
     public function getQrCodeUri(Factor $factor, string $holderName): string
     {
         return $this->google2fa->getQRCodeUrl(
-            config('auth-security.mfa.totp_issuer', config('app.name', 'App')),
+            config('auth-security.mfa.totp_issuer'),
             $holderName,
             $factor->secret_encrypted, // cast 'encrypted' devolve a seed em plain text
         );
@@ -38,7 +38,7 @@ class TotpService
     public function getQrCodeInline(Factor $factor, string $holderName, int $size = 200): string
     {
         return $this->google2fa->getQRCodeInline(
-            config('auth-security.mfa.totp_issuer', config('app.name', 'App')),
+            config('auth-security.mfa.totp_issuer'),
             $holderName,
             $factor->secret_encrypted,
             $size,
@@ -78,7 +78,7 @@ class TotpService
 
     private function timestampCacheKey(Factor $factor): string
     {
-        $prefix = config('auth-security.cache.key_prefix', 'auth_security:');
+        $prefix = config('auth-security.cache.key_prefix');
 
         return "{$prefix}totp_ts:{$factor->user_id}:{$factor->id}";
     }

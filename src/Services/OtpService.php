@@ -25,7 +25,7 @@ class OtpService
         }
 
         $code = $this->generateNumericCode();
-        $expiresAt = now()->addMinutes(config('auth-security.mfa.otp_validity_minutes', 10));
+        $expiresAt = now()->addMinutes(config('auth-security.mfa.otp_validity_minutes'));
 
         Cache::store($cacheDriver)->put($this->otpCacheKey($factor), Hash::make($code), $expiresAt);
         $this->storeMeta($factor, $cacheDriver, $hasActiveOtp, $expiresAt);
@@ -69,11 +69,11 @@ class OtpService
 
         $meta = $this->readMeta($factor, $cacheDriver);
 
-        if ($meta['resend_count'] >= config('auth-security.mfa.otp_resend_limit', 3)) {
+        if ($meta['resend_count'] >= config('auth-security.mfa.otp_resend_limit')) {
             return false;
         }
 
-        $intervalSeconds = config('auth-security.mfa.otp_resend_interval_seconds', 30);
+        $intervalSeconds = config('auth-security.mfa.otp_resend_interval_seconds');
 
         return (now()->timestamp - $meta['last_sent_at']) >= $intervalSeconds;
     }
@@ -82,11 +82,11 @@ class OtpService
     {
         $meta = $this->readMeta($factor, $cacheDriver);
 
-        if ($meta['resend_count'] >= config('auth-security.mfa.otp_resend_limit', 3)) {
+        if ($meta['resend_count'] >= config('auth-security.mfa.otp_resend_limit')) {
             throw new OtpResendLimitException;
         }
 
-        $intervalSeconds = config('auth-security.mfa.otp_resend_interval_seconds', 30);
+        $intervalSeconds = config('auth-security.mfa.otp_resend_interval_seconds');
         $secondsElapsed = now()->timestamp - $meta['last_sent_at'];
 
         if ($secondsElapsed < $intervalSeconds) {
@@ -100,10 +100,10 @@ class OtpService
         $meta = $this->readMeta($factor, $cacheDriver);
         $meta['attempts']++;
 
-        $validityMinutes = config('auth-security.mfa.otp_validity_minutes', 10);
+        $validityMinutes = config('auth-security.mfa.otp_validity_minutes');
         Cache::store($cacheDriver)->put($this->metaCacheKey($factor), $meta, now()->addMinutes($validityMinutes));
 
-        $maxAttempts = config('auth-security.mfa.otp_max_attempts', 5);
+        $maxAttempts = config('auth-security.mfa.otp_max_attempts');
 
         return max(0, $maxAttempts - $meta['attempts']);
     }
@@ -131,7 +131,7 @@ class OtpService
 
     private function generateNumericCode(): string
     {
-        $length = config('auth-security.mfa.otp_length', 6);
+        $length = config('auth-security.mfa.otp_length');
         $max = (int) str_repeat('9', $length);
 
         return str_pad((string) random_int(0, $max), $length, '0', STR_PAD_LEFT);
@@ -139,14 +139,14 @@ class OtpService
 
     private function otpCacheKey(Factor $factor): string
     {
-        $prefix = config('auth-security.cache.key_prefix', 'auth_security:');
+        $prefix = config('auth-security.cache.key_prefix');
 
         return "{$prefix}otp:{$factor->user_id}:{$factor->id}";
     }
 
     private function metaCacheKey(Factor $factor): string
     {
-        $prefix = config('auth-security.cache.key_prefix', 'auth_security:');
+        $prefix = config('auth-security.cache.key_prefix');
 
         return "{$prefix}otp_meta:{$factor->user_id}:{$factor->id}";
     }

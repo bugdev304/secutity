@@ -31,8 +31,8 @@ class LockoutService
         }
 
         $cacheDriver = config('auth-security.cache.driver');
-        $maxAttempts = config('auth-security.lockout.max_attempts', 5);
-        $windowMinutes = config('auth-security.lockout.window_minutes', 10);
+        $maxAttempts = config('auth-security.lockout.max_attempts');
+        $windowMinutes = config('auth-security.lockout.window_minutes');
         $attemptsKey = $this->attemptsCacheKey($user);
 
         if (! Cache::store($cacheDriver)->has($attemptsKey)) {
@@ -81,7 +81,7 @@ class LockoutService
 
     private function attemptsCacheKey(Authenticatable $user): string
     {
-        $prefix = config('auth-security.cache.key_prefix', 'auth_security:');
+        $prefix = config('auth-security.cache.key_prefix');
 
         return "{$prefix}lockout_attempts:{$user->getAuthIdentifier()}";
     }

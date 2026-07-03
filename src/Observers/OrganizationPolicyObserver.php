@@ -21,7 +21,7 @@ class OrganizationPolicyObserver
 
     private function forgetPolicyCache(OrganizationPolicy $policy): void
     {
-        $prefix = config('auth-security.cache.key_prefix', 'auth_security:');
+        $prefix = config('auth-security.cache.key_prefix');
         $cacheKey = "{$prefix}policy:{$policy->tenant_type}:{$policy->tenant_id}:{$policy->role_type}:{$policy->role_id}:{$policy->context}";
 
         Cache::store(config('auth-security.cache.driver'))->forget($cacheKey);

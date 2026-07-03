@@ -94,8 +94,8 @@ class AuthSecurityServiceProvider extends ServiceProvider
      */
     public static function routes(?string $prefix = null, array $middleware = [], ?string $guard = null): void
     {
-        $prefix = $prefix ?? config('auth-security.routes.prefix', 'auth-security');
-        $guard = $guard ?? config('auth-security.routes.guard', 'sanctum');
+        $prefix = $prefix ?? config('auth-security.routes.prefix');
+        $guard = $guard ?? config('auth-security.routes.guard');
 
         $baseMiddleware = $guard !== null ? ['api', "auth:{$guard}"] : ['api'];
 
@@ -163,22 +163,22 @@ class AuthSecurityServiceProvider extends ServiceProvider
     private function bootRateLimiters(): void
     {
         RateLimiter::for('auth-security:verify', function (Request $request) {
-            return Limit::perMinute(config('auth-security.rate_limits.verify_per_minute', 10))
+            return Limit::perMinute(config('auth-security.rate_limits.verify_per_minute'))
                 ->by($request->user()?->getAuthIdentifier() ?? $request->ip());
         });
 
         RateLimiter::for('auth-security:send-otp', function (Request $request) {
-            return Limit::perMinute(config('auth-security.rate_limits.send_otp_per_minute', 5))
+            return Limit::perMinute(config('auth-security.rate_limits.send_otp_per_minute'))
                 ->by($request->user()?->getAuthIdentifier() ?? $request->ip());
         });
 
         RateLimiter::for('auth-security:generate-recovery', function (Request $request) {
-            return Limit::perMinute(config('auth-security.rate_limits.generate_recovery_per_minute', 3))
+            return Limit::perMinute(config('auth-security.rate_limits.generate_recovery_per_minute'))
                 ->by($request->user()?->getAuthIdentifier() ?? $request->ip());
         });
 
         RateLimiter::for('auth-security:assisted-recovery', function (Request $request) {
-            return Limit::perMinute(config('auth-security.rate_limits.assisted_recovery_per_minute', 5))
+            return Limit::perMinute(config('auth-security.rate_limits.assisted_recovery_per_minute'))
                 ->by($request->user()?->getAuthIdentifier() ?? $request->ip());
         });
     }

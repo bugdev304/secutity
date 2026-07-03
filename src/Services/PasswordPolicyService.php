@@ -16,12 +16,12 @@ class PasswordPolicyService
     {
         $violations = [];
 
-        $minLength = config('auth-security.password.min_length', 8);
+        $minLength = config('auth-security.password.min_length');
         if (mb_strlen($newPassword) < $minLength) {
             $violations[] = "min_length:{$minLength}";
         }
 
-        $classesRequired = config('auth-security.password.classes_required', 3);
+        $classesRequired = config('auth-security.password.classes_required');
         $classCount = 0;
         if (preg_match('/[A-Z]/', $newPassword)) {
             $classCount++;
@@ -39,7 +39,7 @@ class PasswordPolicyService
             $violations[] = "classes_required:{$classesRequired}";
         }
 
-        $historySize = config('auth-security.password.history_size', 3);
+        $historySize = config('auth-security.password.history_size');
         if ($historySize > 0) {
             $recentHashes = PasswordHistory::where('user_id', $user->getAuthIdentifier())
                 ->orderByDesc('created_at')
@@ -66,7 +66,7 @@ class PasswordPolicyService
             'password_hash' => $hashedPassword,
         ]);
 
-        $historySize = config('auth-security.password.history_size', 3);
+        $historySize = config('auth-security.password.history_size');
         if ($historySize > 0) {
             $identifiersToKeep = PasswordHistory::where('user_id', $user->getAuthIdentifier())
                 ->orderByDesc('created_at')
@@ -81,7 +81,7 @@ class PasswordPolicyService
 
     public function isExpired(Authenticatable $user): bool
     {
-        $expirationDays = config('auth-security.password.expiration_days', 90);
+        $expirationDays = config('auth-security.password.expiration_days');
         if (! $expirationDays) {
             return false;
         }

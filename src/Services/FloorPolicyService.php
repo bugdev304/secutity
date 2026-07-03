@@ -12,7 +12,7 @@ class FloorPolicyService
      */
     public function requiresMfa(string $roleType): bool
     {
-        $requiredRoles = config('auth-security.floor_policy.roles_required', []);
+        $requiredRoles = config('auth-security.floor_policy.roles_required');
 
         return in_array($roleType, $requiredRoles, strict: true);
     }
@@ -26,7 +26,7 @@ class FloorPolicyService
      */
     public function findConflicts(array $proposedDisabledRoles): array
     {
-        $requiredRoles = config('auth-security.floor_policy.roles_required', []);
+        $requiredRoles = config('auth-security.floor_policy.roles_required');
 
         return array_values(array_intersect($proposedDisabledRoles, $requiredRoles));
     }

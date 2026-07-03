@@ -29,7 +29,7 @@ class RecoveryCodeService
     {
         $userId = $user->getAuthIdentifier();
         $generationId = Str::uuid()->toString();
-        $codesCount = config('auth-security.mfa.recovery_codes_count', 8);
+        $codesCount = config('auth-security.mfa.recovery_codes_count');
 
         $this->invalidatePreviousGeneration($userId);
 

@@ -60,7 +60,7 @@ class AssistedRecoveryService
         }
 
         $plainToken = Str::random(64);
-        $tokenExpiresHours = config('auth-security.assisted_recovery.token_expires_hours', 24);
+        $tokenExpiresHours = config('auth-security.assisted_recovery.token_expires_hours');
 
         $recovery->update([
             'executed_by_user_id' => $admin->getAuthIdentifier(),

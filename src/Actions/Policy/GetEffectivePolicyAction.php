@@ -37,8 +37,8 @@ class GetEffectivePolicyAction
         }
 
         $cacheDriver = config('auth-security.cache.driver');
-        $prefix = config('auth-security.cache.key_prefix', 'auth_security:');
-        $ttlMinutes = config('auth-security.cache.policy_ttl_minutes', 5);
+        $prefix = config('auth-security.cache.key_prefix');
+        $ttlMinutes = config('auth-security.cache.policy_ttl_minutes');
         $cacheKey = "{$prefix}policy:{$tenantType}:{$tenantId}:{$roleType}:{$roleId}:{$context}";
 
         return Cache::store($cacheDriver)->remember(

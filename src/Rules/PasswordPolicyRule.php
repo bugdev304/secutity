@@ -20,12 +20,12 @@ class PasswordPolicyRule implements ValidationRule
     {
         $password = (string) $value;
 
-        $minLength = (int) config('auth-security.password.min_length', 8);
+        $minLength = (int) config('auth-security.password.min_length');
         if (mb_strlen($password) < $minLength) {
             $fail(__('auth-security.password_violation_min_length', ['min' => $minLength]));
         }
 
-        $classesRequired = (int) config('auth-security.password.classes_required', 3);
+        $classesRequired = (int) config('auth-security.password.classes_required');
         $classCount = 0;
         if (preg_match('/[A-Z]/', $password)) {
             $classCount++;
@@ -47,7 +47,7 @@ class PasswordPolicyRule implements ValidationRule
             return;
         }
 
-        $historySize = (int) config('auth-security.password.history_size', 0);
+        $historySize = (int) config('auth-security.password.history_size');
         if ($historySize <= 0) {
             return;
         }
