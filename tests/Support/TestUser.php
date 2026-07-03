@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ae3\AuthSecurity\Tests\Support;
 
+use Ae3\AuthSecurity\Concerns\HasAuthSecurity;
 use Ae3\AuthSecurity\Contracts\MfaContactProvider;
 use Ae3\AuthSecurity\Data\MfaContact;
 use Ae3\AuthSecurity\Enums\MfaChannel;
@@ -13,6 +14,7 @@ use Laravel\Sanctum\HasApiTokens;
 class TestUser extends Authenticatable implements MfaContactProvider
 {
     use HasApiTokens;
+    use HasAuthSecurity;
 
     protected $table = 'users';
 

@@ -4,11 +4,9 @@ declare(strict_types=1);
 
 namespace Ae3\AuthSecurity\Http\Middleware;
 
-use Ae3\AuthSecurity\Contracts\MfaRoleResolver;
-use Ae3\AuthSecurity\Contracts\MfaTenantResolver;
+use Ae3\AuthSecurity\Services\MfaRequirementResolver;
 use Ae3\AuthSecurity\Services\MfaSessionService;
 use Closure;
-use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
@@ -16,8 +14,7 @@ class EnsureMfaCompleted
 {
     public function __construct(
         private readonly MfaSessionService $mfaSessionService,
-        private readonly MfaTenantResolver $tenantResolver,
-        private readonly MfaRoleResolver $roleResolver,
+        private readonly MfaRequirementResolver $mfaRequirementResolver,
     ) {}
 
     /**
@@ -32,7 +29,7 @@ class EnsureMfaCompleted
             return $next($request);
         }
 
-        if (! $this->isMfaRequired($user, $context)) {
+        if (! $this->mfaRequirementResolver->isRequiredFor($user, $context)) {
             return $next($request);
         }
 
@@ -49,22 +46,6 @@ class EnsureMfaCompleted
         }
 
         return $next($request);
-    }
-
-    private function isMfaRequired(Authenticatable $user, ?string $context): bool
-    {
-        $tenant = $this->tenantResolver->tenantOf($user);
-
-        // Sem tenant resolvido: sem RBAC configurado — exige MFA para todos.
-        if ($tenant === null) {
-            return true;
-        }
-
-        $roles = $this->roleResolver->rolesOf($user);
-
-        return collect($roles)->contains(
-            fn (string $role) => $this->roleResolver->requiresMfa($tenant, $role, $context)
-        );
     }
 
     private function denyMfa(): Response

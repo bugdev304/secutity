@@ -358,6 +358,35 @@ class MyContextResolver implements MfaContextResolver
 
 Todos os endpoints requerem autenticação Sanctum (`auth:sanctum`).
 
+### Estado de autenticação
+
+| Método | URI | Ação |
+|---|---|---|
+| `GET` | `{prefix}/mfa/state` | Snapshot do estado de MFA do usuário numa única chamada (ver abaixo) |
+
+`GET /mfa/state` existe pra evitar que o front descubra o estado de autenticação reagindo a
+códigos de erro 403 espalhados (`MFA_FACTOR_REGISTRATION_REQUIRED`, `MFA_REQUIRED`,
+`PASSWORD_EXPIRED`) — não passa pelo middleware `auth-security.mfa`, então funciona mesmo sem
+`X-Mfa-Session-Token`. Resposta:
+
+```json
+{
+  "data": {
+    "must_register_factor": false,
+    "mfa_required": true,
+    "mfa_satisfied": false,
+    "password_expired": false,
+    "account_locked": false,
+    "factors": [{ "id": 1, "type": "authenticator_app", "confirmed_at": "...", "last_used_at": "..." }],
+    "contacts": [{ "channel": "email", "masked_identifier": "j***@e***.com", "label": "E-mail", "contact_token": "..." }]
+  },
+  "meta": {}
+}
+```
+
+Envie o `X-Mfa-Session-Token` atual (se tiver) nessa chamada — sem ele, `mfa_satisfied` sempre
+vem `false`, mesmo que a sessão já tenha um token válido de uma verificação anterior.
+
 ### Fatores MFA
 
 | Método | URI | Ação |
