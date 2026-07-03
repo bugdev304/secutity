@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ae3\AuthSecurity\Http\Middleware;
 
+use Ae3\AuthSecurity\Enums\ErrorCode;
 use Ae3\AuthSecurity\Models\UserState;
 use Closure;
 use Illuminate\Http\Request;
@@ -28,7 +29,7 @@ class EnsureMustRegisterFactorCompleted
         if ($state !== null && $state->must_register_factor) {
             return response()->json([
                 'message' => __('auth-security.mfa_factor_registration_required'),
-                'code' => 'MFA_FACTOR_REGISTRATION_REQUIRED',
+                'code' => ErrorCode::MFA_FACTOR_REGISTRATION_REQUIRED->value,
             ], Response::HTTP_FORBIDDEN);
         }
 

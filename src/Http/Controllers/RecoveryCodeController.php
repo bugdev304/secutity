@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ae3\AuthSecurity\Http\Controllers;
 
 use Ae3\AuthSecurity\Actions\Mfa\GenerateRecoveryCodesAction;
+use Ae3\AuthSecurity\Enums\ErrorCode;
 use Ae3\AuthSecurity\Http\Requests\GenerateRecoveryCodesRequest;
 use Ae3\AuthSecurity\Http\Resources\RecoveryCodeMetaResource;
 use Ae3\AuthSecurity\Models\RecoveryCode;
@@ -39,7 +40,7 @@ class RecoveryCodeController extends Controller
         if ($hasExistingCodes && ! $confirmInvalidation) {
             return response()->json([
                 'message' => __('auth-security.invalidation_required'),
-                'code' => 'INVALIDATION_REQUIRED',
+                'code' => ErrorCode::INVALIDATION_REQUIRED->value,
             ], Response::HTTP_CONFLICT);
         }
 

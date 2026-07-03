@@ -8,6 +8,7 @@ use Ae3\AuthSecurity\Actions\Mfa\SendOtpAction;
 use Ae3\AuthSecurity\Actions\Mfa\VerifyOtpAction;
 use Ae3\AuthSecurity\Actions\Mfa\VerifyRecoveryCodeAction;
 use Ae3\AuthSecurity\Actions\Mfa\VerifyTotpAction;
+use Ae3\AuthSecurity\Enums\ErrorCode;
 use Ae3\AuthSecurity\Enums\FactorType;
 use Ae3\AuthSecurity\Http\Requests\VerifyMfaRequest;
 use Ae3\AuthSecurity\Models\Factor;
@@ -105,7 +106,7 @@ class MfaVerificationController extends Controller
         if (! $factor->type->isOtp()) {
             return response()->json([
                 'message' => 'Resend is not available for this factor type.',
-                'code' => 'RESEND_NOT_ALLOWED',
+                'code' => ErrorCode::RESEND_NOT_ALLOWED->value,
             ], Response::HTTP_BAD_REQUEST);
         }
 

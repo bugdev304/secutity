@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ae3\AuthSecurity\Http\Middleware;
 
+use Ae3\AuthSecurity\Enums\ErrorCode;
 use Ae3\AuthSecurity\Services\MfaRequirementResolver;
 use Ae3\AuthSecurity\Services\MfaSessionService;
 use Closure;
@@ -52,7 +53,7 @@ class EnsureMfaCompleted
     {
         return response()->json([
             'message' => __('auth-security.mfa_required'),
-            'code' => 'MFA_REQUIRED',
+            'code' => ErrorCode::MFA_REQUIRED->value,
         ], Response::HTTP_FORBIDDEN);
     }
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ae3\AuthSecurity\Http\Middleware;
 
+use Ae3\AuthSecurity\Enums\ErrorCode;
 use Ae3\AuthSecurity\Services\LockoutService;
 use Closure;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class EnsureAccountNotLocked
         if ($user !== null && $this->lockoutService->isLocked($user)) {
             return response()->json([
                 'message' => __('auth-security.account_locked'),
-                'code' => 'ACCOUNT_LOCKED',
+                'code' => ErrorCode::ACCOUNT_LOCKED->value,
             ], Response::HTTP_FORBIDDEN);
         }
 

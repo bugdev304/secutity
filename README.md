@@ -606,6 +606,40 @@ Usuário:
 
 ---
 
+## Códigos de erro
+
+Todo `code` retornado em respostas de erro (ver "Envelope de resposta") vem de
+`Ae3\AuthSecurity\Enums\ErrorCode` — um enum backed string que é a **fonte única**
+consumida tanto pelos middlewares/controllers do pacote quanto por
+`AuthSecurityServiceProvider::resolveExceptionDetails()`. Não há strings soltas
+duplicando esses valores em outro lugar do código.
+
+O front deve tratar `code` (nunca `message`, que é traduzível) como o contrato
+estável para lógica condicional. O mesmo catálogo está espelhado em
+[`openapi.yaml`](openapi.yaml) (`components/schemas/ErrorCode`) para geração de
+tipos TypeScript.
+
+| Código | HTTP | Quando |
+|---|---|---|
+| `MFA_REQUIRED` | 403 | Usuário tem fator, mas sem `X-Mfa-Session-Token` válido |
+| `MFA_FACTOR_REGISTRATION_REQUIRED` | 403 | `UserState.must_register_factor = true` |
+| `ACCOUNT_LOCKED` | 423/403 | Conta bloqueada por tentativas |
+| `PASSWORD_EXPIRED` | 403 | Senha expirou conforme `expiration_days` |
+| `INVALID_CODE` | 422 | Código OTP/TOTP/recovery errado ou expirado |
+| `RESEND_RATE_LIMITED` | 429 | Reenvio de OTP solicitado antes do intervalo/limite |
+| `RESEND_NOT_ALLOWED` | 400 | Reenvio pedido para fator que não suporta (ex.: TOTP) |
+| `WEAK_PASSWORD` | 422 | Nova senha não atende à política |
+| `BELOW_FLOOR` | 422 | Política de organização abaixo do piso obrigatório |
+| `INVALID_IDENTIFIER` | 422 | `contact_token` inválido/adulterado |
+| `LAST_FACTOR_REQUIRED` | 409 | Tentou remover o último fator ativo |
+| `INVALID_STATUS` | 409 | Ação de recuperação assistida fora do status elegível |
+| `INVALID_TOKEN` | 422 | Token de recuperação assistida inválido |
+| `TOKEN_EXPIRED` | 422 | Token de recuperação assistida expirado |
+| `INVALIDATION_REQUIRED` | 409 | Geração de recovery codes sem confirmar invalidação da leva atual |
+| `AUTH_SECURITY_ERROR` | 500 | Fallback — exceção de domínio sem mapeamento específico |
+
+---
+
 ## Eventos
 
 O pacote dispara 6 eventos que o `DispatchAuditLogListener` encaminha ao `MfaAuditLogger`:

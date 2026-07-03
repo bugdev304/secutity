@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ae3\AuthSecurity\Http\Middleware;
 
+use Ae3\AuthSecurity\Enums\ErrorCode;
 use Ae3\AuthSecurity\Services\PasswordPolicyService;
 use Closure;
 use Illuminate\Http\Request;
@@ -22,7 +23,7 @@ class EnsurePasswordNotExpired
         if ($user !== null && $this->passwordPolicyService->isExpired($user)) {
             return response()->json([
                 'message' => __('auth-security.password_expired'),
-                'code' => 'PASSWORD_EXPIRED',
+                'code' => ErrorCode::PASSWORD_EXPIRED->value,
             ], Response::HTTP_FORBIDDEN);
         }
 

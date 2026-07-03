@@ -14,6 +14,7 @@ use Ae3\AuthSecurity\Defaults\NullMfaContextResolver;
 use Ae3\AuthSecurity\Defaults\NullMfaMessageSender;
 use Ae3\AuthSecurity\Defaults\NullMfaRoleResolver;
 use Ae3\AuthSecurity\Defaults\NullMfaTenantResolver;
+use Ae3\AuthSecurity\Enums\ErrorCode;
 use Ae3\AuthSecurity\Exceptions\AccountLockedException;
 use Ae3\AuthSecurity\Exceptions\AssistedRecoveryExpiredException;
 use Ae3\AuthSecurity\Exceptions\AssistedRecoveryInvalidStatusException;
@@ -224,20 +225,20 @@ class AuthSecurityServiceProvider extends ServiceProvider
     private function resolveExceptionDetails(AuthSecurityException $exception): array
     {
         return match (true) {
-            $exception instanceof AccountLockedException => [Response::HTTP_LOCKED, 'ACCOUNT_LOCKED', array_filter(['locked_at' => $exception->getLockedAt()?->toIso8601String()])],
-            $exception instanceof OtpExpiredException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'INVALID_CODE', []],
-            $exception instanceof OtpInvalidException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'INVALID_CODE', ['remaining_attempts' => $exception->getRemainingAttempts()]],
-            $exception instanceof OtpResendLimitException => [Response::HTTP_TOO_MANY_REQUESTS, 'RESEND_RATE_LIMITED', []],
-            $exception instanceof OtpResendTooSoonException => [Response::HTTP_TOO_MANY_REQUESTS, 'RESEND_RATE_LIMITED', ['retry_after_seconds' => $exception->getSecondsRemaining()]],
-            $exception instanceof RecoveryCodeInvalidException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'INVALID_CODE', []],
-            $exception instanceof PasswordPolicyException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'WEAK_PASSWORD', ['violations' => $exception->getViolations()]],
-            $exception instanceof PolicyBelowFloorException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'BELOW_FLOOR', ['conflicts' => $exception->getConflicts()]],
-            $exception instanceof InvalidFactorIdentifierException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'INVALID_IDENTIFIER', []],
-            $exception instanceof LastFactorRemovalException => [Response::HTTP_CONFLICT, 'LAST_FACTOR_REQUIRED', []],
-            $exception instanceof AssistedRecoveryInvalidStatusException => [Response::HTTP_CONFLICT, 'INVALID_STATUS', []],
-            $exception instanceof AssistedRecoveryInvalidTokenException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'INVALID_TOKEN', []],
-            $exception instanceof AssistedRecoveryExpiredException => [Response::HTTP_UNPROCESSABLE_ENTITY, 'TOKEN_EXPIRED', []],
-            default => [Response::HTTP_INTERNAL_SERVER_ERROR, 'AUTH_SECURITY_ERROR', []],
+            $exception instanceof AccountLockedException => [Response::HTTP_LOCKED, ErrorCode::ACCOUNT_LOCKED->value, array_filter(['locked_at' => $exception->getLockedAt()?->toIso8601String()])],
+            $exception instanceof OtpExpiredException => [Response::HTTP_UNPROCESSABLE_ENTITY, ErrorCode::INVALID_CODE->value, []],
+            $exception instanceof OtpInvalidException => [Response::HTTP_UNPROCESSABLE_ENTITY, ErrorCode::INVALID_CODE->value, ['remaining_attempts' => $exception->getRemainingAttempts()]],
+            $exception instanceof OtpResendLimitException => [Response::HTTP_TOO_MANY_REQUESTS, ErrorCode::RESEND_RATE_LIMITED->value, []],
+            $exception instanceof OtpResendTooSoonException => [Response::HTTP_TOO_MANY_REQUESTS, ErrorCode::RESEND_RATE_LIMITED->value, ['retry_after_seconds' => $exception->getSecondsRemaining()]],
+            $exception instanceof RecoveryCodeInvalidException => [Response::HTTP_UNPROCESSABLE_ENTITY, ErrorCode::INVALID_CODE->value, []],
+            $exception instanceof PasswordPolicyException => [Response::HTTP_UNPROCESSABLE_ENTITY, ErrorCode::WEAK_PASSWORD->value, ['violations' => $exception->getViolations()]],
+            $exception instanceof PolicyBelowFloorException => [Response::HTTP_UNPROCESSABLE_ENTITY, ErrorCode::BELOW_FLOOR->value, ['conflicts' => $exception->getConflicts()]],
+            $exception instanceof InvalidFactorIdentifierException => [Response::HTTP_UNPROCESSABLE_ENTITY, ErrorCode::INVALID_IDENTIFIER->value, []],
+            $exception instanceof LastFactorRemovalException => [Response::HTTP_CONFLICT, ErrorCode::LAST_FACTOR_REQUIRED->value, []],
+            $exception instanceof AssistedRecoveryInvalidStatusException => [Response::HTTP_CONFLICT, ErrorCode::INVALID_STATUS->value, []],
+            $exception instanceof AssistedRecoveryInvalidTokenException => [Response::HTTP_UNPROCESSABLE_ENTITY, ErrorCode::INVALID_TOKEN->value, []],
+            $exception instanceof AssistedRecoveryExpiredException => [Response::HTTP_UNPROCESSABLE_ENTITY, ErrorCode::TOKEN_EXPIRED->value, []],
+            default => [Response::HTTP_INTERNAL_SERVER_ERROR, ErrorCode::AUTH_SECURITY_ERROR->value, []],
         };
     }
 }
