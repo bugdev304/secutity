@@ -64,7 +64,7 @@ class FactorController extends Controller
 
         $contact = ContactTokenizer::resolve($user, $request->input('contact_token'));
 
-        if ($contact === null) {
+        if ($contact === null || $contact->channel->value !== $factorType->value) {
             throw new InvalidFactorIdentifierException;
         }
 

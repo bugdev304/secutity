@@ -92,6 +92,21 @@ class FactorControllerTest extends FeatureTestCase
             ->assertJsonPath('code', 'DUPLICATE_FACTOR');
     }
 
+    public function test_store_rejects_contact_token_from_a_different_channel_than_requested_type(): void
+    {
+        $emailContactToken = ContactTokenizer::generate(MfaChannel::EMAIL, $this->user->email);
+
+        $response = $this->postJson('/test-api/mfa/factors', [
+            'type' => 'sms',
+            'contact_token' => $emailContactToken,
+        ]);
+
+        $response->assertStatus(Response::HTTP_UNPROCESSABLE_ENTITY)
+            ->assertJsonPath('code', 'INVALID_IDENTIFIER');
+
+        $this->assertDatabaseMissing('factors', ['user_id' => $this->user->id]);
+    }
+
     public function test_store_requires_contact_token_for_otp(): void
     {
         $response = $this->postJson('/test-api/mfa/factors', [
