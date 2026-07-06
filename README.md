@@ -680,6 +680,28 @@ Para observar eventos adicionais, registre listeners na app consumidora normalme
 
 ---
 
+## Retenção e eliminação de dados (LGPD Art. 15/16)
+
+O comando `php artisan auth-security:purge-expired-data` elimina dados pessoais que já perderam a finalidade de tratamento:
+
+- **Fatores nunca confirmados** (`pending_factors_days`, padrão 7 dias) — cadastros de e-mail/SMS/TOTP abandonados, sem valor de segurança.
+- **Recuperações assistidas finalizadas** (`assisted_recoveries_days`, padrão `null` = desativado) — desativado por padrão porque muitas apps precisam manter essa trilha por obrigação legal (Art. 16, I).
+
+Nada é apagado automaticamente pelo pacote. Agende o comando no scheduler da app (`routes/console.php`) só se sua base legal permitir eliminar esses registros:
+
+```php
+Schedule::command('auth-security:purge-expired-data')->daily();
+```
+
+Configure os prazos via `.env`:
+
+```
+AUTH_SECURITY_RETENTION_PENDING_FACTORS_DAYS=7
+AUTH_SECURITY_RETENTION_ASSISTED_RECOVERIES_DAYS=
+```
+
+---
+
 ## Responsabilidades da app consumidora
 
 O pacote cuida do ciclo de vida dos fatores, OTP, TOTP, recovery e políticas. As responsabilidades abaixo ficam fora do escopo do pacote e devem ser implementadas na app.

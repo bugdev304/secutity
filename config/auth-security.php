@@ -115,6 +115,29 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Retenção de dados (LGPD Art. 15/16 — término do tratamento e eliminação)
+    |--------------------------------------------------------------------------
+    | Usados pelo comando `auth-security:purge-expired-data` (agende via
+    | scheduler da app consumidora). Nenhuma eliminação é automática — a app
+    | decide quando/rodar o comando, conforme sua própria base legal.
+    |
+    |  pending_factors_days      → cadastro de fator (email/sms/TOTP) nunca
+    |                              confirmado, contado a partir de created_at.
+    |                              null desativa a eliminação.
+    |  assisted_recoveries_days  → recuperação assistida finalizada (completed
+    |                              ou refused), contada a partir de updated_at.
+    |                              null desativa (recomendado se a app tem
+    |                              obrigação legal de manter trilha de
+    |                              auditoria — LGPD Art. 16, I).
+    */
+
+    'retention' => [
+        'pending_factors_days' => env('AUTH_SECURITY_RETENTION_PENDING_FACTORS_DAYS', 7),
+        'assisted_recoveries_days' => env('AUTH_SECURITY_RETENTION_ASSISTED_RECOVERIES_DAYS'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Cache
     |--------------------------------------------------------------------------
     */

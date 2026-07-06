@@ -72,10 +72,14 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 - `DatabaseTestCase` + `FeatureTestCase` bases com SQLite in-memory e fake contracts
 - Suporte de test: `TestUser`, `FakeMfaMessageSender`, `FakeMfaAuditLogger`, fakes de resolvers
 
+### Added
+
+- Comando `auth-security:purge-expired-data` e `DataRetentionService` — elimina fatores nunca confirmados e recuperações assistidas finalizadas conforme `config('auth-security.retention')`. Nada é apagado automaticamente; a app decide se/quando agendar (LGPD Art. 15/16 — término do tratamento e eliminação de dados pessoais)
+
 ### Fixed
 
 - `AuthSecurityServiceProvider::routes()` deriva o grupo de middleware stateful (`web`/`api`) do driver real do guard (`config('auth.guards.{guard}.driver')`) em vez de sempre fixar `api` — guards de sessão (ex.: `web`) agora recebem `StartSession` corretamente
-- `factors`: constraint `unique(user_id, type, identifier)` — impede cadastrar o mesmo contato (e-mail/telefone) duas vezes como fator; `EnrollOtpFactorAction` valida isso antes do insert e lança `DuplicateFactorException` (`DUPLICATE_FACTOR`, 409). Múltiplos contatos distintos (vários e-mails/telefones) continuam suportados normalmente — cada um é um fator próprio
+- `factors`: constraint `unique(user_id, type, identifier)` (migration própria, não altera a migration original de criação) — impede cadastrar o mesmo contato (e-mail/telefone) duas vezes como fator; `EnrollOtpFactorAction` valida isso antes do insert e lança `DuplicateFactorException` (`DUPLICATE_FACTOR`, 409). Múltiplos contatos distintos (vários e-mails/telefones) continuam suportados normalmente — cada um é um fator próprio
 
 ### Security
 

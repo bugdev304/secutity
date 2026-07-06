@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Ae3\AuthSecurity;
 
+use Ae3\AuthSecurity\Console\Commands\PurgeExpiredDataCommand;
 use Ae3\AuthSecurity\Contracts\MfaAuditLogger;
 use Ae3\AuthSecurity\Contracts\MfaContextResolver;
 use Ae3\AuthSecurity\Contracts\MfaMessageSender;
@@ -84,6 +85,14 @@ class AuthSecurityServiceProvider extends ServiceProvider
         $this->bootRateLimiters();
         $this->bootMiddlewareAliases();
         $this->bootExceptionRendering();
+        $this->bootCommands();
+    }
+
+    private function bootCommands(): void
+    {
+        if ($this->app->runningInConsole()) {
+            $this->commands([PurgeExpiredDataCommand::class]);
+        }
     }
 
     /**
