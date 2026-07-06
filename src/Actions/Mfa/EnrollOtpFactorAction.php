@@ -10,6 +10,7 @@ use Ae3\AuthSecurity\Contracts\MfaMessageSender;
 use Ae3\AuthSecurity\Data\MfaContact;
 use Ae3\AuthSecurity\Enums\FactorType;
 use Ae3\AuthSecurity\Enums\MfaChannel;
+use Ae3\AuthSecurity\Exceptions\DuplicateFactorException;
 use Ae3\AuthSecurity\Exceptions\InvalidFactorIdentifierException;
 use Ae3\AuthSecurity\Models\Factor;
 use Ae3\AuthSecurity\Services\OtpService;
@@ -45,6 +46,15 @@ class EnrollOtpFactorAction
             if (! in_array($identifier, $allowedIdentifiers, strict: true)) {
                 throw new InvalidFactorIdentifierException;
             }
+        }
+
+        $alreadyEnrolled = Factor::where('user_id', $user->getAuthIdentifier())
+            ->where('type', $factorType)
+            ->where('identifier', $identifier)
+            ->exists();
+
+        if ($alreadyEnrolled) {
+            throw new DuplicateFactorException;
         }
 
         $factor = Factor::create([

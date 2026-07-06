@@ -72,6 +72,26 @@ class FactorControllerTest extends FeatureTestCase
         $this->assertSame(MfaChannel::EMAIL, $this->messageSender->sent[0]['channel']);
     }
 
+    public function test_store_rejects_duplicate_factor_for_same_contact(): void
+    {
+        Factor::create([
+            'user_id' => $this->user->id,
+            'type' => FactorType::EMAIL,
+            'identifier' => $this->user->email,
+            'confirmed_at' => now(),
+        ]);
+
+        $contactToken = ContactTokenizer::generate(MfaChannel::EMAIL, $this->user->email);
+
+        $response = $this->postJson('/test-api/mfa/factors', [
+            'type' => 'email',
+            'contact_token' => $contactToken,
+        ]);
+
+        $response->assertStatus(Response::HTTP_CONFLICT)
+            ->assertJsonPath('code', 'DUPLICATE_FACTOR');
+    }
+
     public function test_store_requires_contact_token_for_otp(): void
     {
         $response = $this->postJson('/test-api/mfa/factors', [

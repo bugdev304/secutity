@@ -24,6 +24,7 @@ class ErrorCodeTest extends TestCase
             'WEAK_PASSWORD' => ['WEAK_PASSWORD'],
             'BELOW_FLOOR' => ['BELOW_FLOOR'],
             'INVALID_IDENTIFIER' => ['INVALID_IDENTIFIER'],
+            'DUPLICATE_FACTOR' => ['DUPLICATE_FACTOR'],
             'LAST_FACTOR_REQUIRED' => ['LAST_FACTOR_REQUIRED'],
             'INVALID_STATUS' => ['INVALID_STATUS'],
             'INVALID_TOKEN' => ['INVALID_TOKEN'],

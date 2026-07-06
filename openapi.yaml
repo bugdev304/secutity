@@ -158,6 +158,12 @@ paths:
                           enrollment_started: { type: boolean }
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Contato já cadastrado como fator (DUPLICATE_FACTOR)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
         '422':
           description: Validação falhou ou contact_token inválido (INVALID_IDENTIFIER)
           content:
@@ -850,6 +856,7 @@ components:
         - WEAK_PASSWORD
         - BELOW_FLOOR
         - INVALID_IDENTIFIER
+        - DUPLICATE_FACTOR
         - LAST_FACTOR_REQUIRED
         - INVALID_STATUS
         - INVALID_TOKEN

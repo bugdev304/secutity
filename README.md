@@ -837,6 +837,7 @@ Todos os erros retornam `{ message, code, ...extras }`:
 |---|---|---|
 | `INVALID_CODE` | 422 | OTP/TOTP/recovery code inválido ou expirado |
 | `INVALID_IDENTIFIER` | 422 | Identificador não pertence aos contatos do usuário |
+| `DUPLICATE_FACTOR` | 409 | Contato já cadastrado como fator (mesmo user_id+type+identifier) |
 | `RESEND_RATE_LIMITED` | 429 | Reenvio muito frequente |
 | `WEAK_PASSWORD` | 422 | Senha viola política — `violations[]` |
 | `BELOW_FLOOR` | 422 | Política abaixo do piso — `conflicts[]` |

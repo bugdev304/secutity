@@ -20,6 +20,7 @@ use Ae3\AuthSecurity\Exceptions\AssistedRecoveryExpiredException;
 use Ae3\AuthSecurity\Exceptions\AssistedRecoveryInvalidStatusException;
 use Ae3\AuthSecurity\Exceptions\AssistedRecoveryInvalidTokenException;
 use Ae3\AuthSecurity\Exceptions\AuthSecurityException;
+use Ae3\AuthSecurity\Exceptions\DuplicateFactorException;
 use Ae3\AuthSecurity\Exceptions\InvalidFactorIdentifierException;
 use Ae3\AuthSecurity\Exceptions\LastFactorRemovalException;
 use Ae3\AuthSecurity\Exceptions\OtpExpiredException;
@@ -86,22 +87,38 @@ class AuthSecurityServiceProvider extends ServiceProvider
     }
 
     /**
-     * Registra as rotas do pacote sob um prefixo configurável. Chamar no routes/api.php da app.
+     * Registra as rotas do pacote sob um prefixo configurável. Chamar no routes/api.php (ou
+     * routes/web.php, para guards de sessão) da app.
      *
-     * @param  ?string  $guard  Guard de autenticação (ex.: 'sanctum', 'api' para Passport). Passe null
-     *                          para não aplicar nenhum guard automaticamente — útil quando o middleware
-     *                          de autenticação já vem via $middleware.
+     * @param  ?string  $guard  Guard de autenticação (ex.: 'sanctum', 'api' para Passport, 'web' para
+     *                          sessão). Passe null para não aplicar nenhum guard automaticamente — útil
+     *                          quando o middleware de autenticação já vem via $middleware.
      */
     public static function routes(?string $prefix = null, array $middleware = [], ?string $guard = null): void
     {
         $prefix = $prefix ?? config('auth-security.routes.prefix');
         $guard = $guard ?? config('auth-security.routes.guard');
 
-        $baseMiddleware = $guard !== null ? ['api', "auth:{$guard}"] : ['api'];
+        $statefulGroup = self::resolveStatefulMiddlewareGroup($guard);
+        $baseMiddleware = $guard !== null ? [$statefulGroup, "auth:{$guard}"] : [$statefulGroup];
 
         Route::prefix($prefix)
             ->middleware(array_merge($baseMiddleware, $middleware))
             ->group(__DIR__.'/Http/routes.php');
+    }
+
+    /**
+     * Guards com driver 'session' (ex.: 'web') precisam do grupo 'web' pra ter a sessão
+     * iniciada — sem isso, auth:{guard} nunca decodifica o cookie e o usuário some. Qualquer
+     * outro driver (token, passport, sanctum stateless, etc.) continua em 'api'.
+     */
+    private static function resolveStatefulMiddlewareGroup(?string $guard): string
+    {
+        if ($guard === null) {
+            return 'api';
+        }
+
+        return config("auth.guards.{$guard}.driver") === 'session' ? 'web' : 'api';
     }
 
     private function registerContracts(): void
@@ -238,6 +255,7 @@ class AuthSecurityServiceProvider extends ServiceProvider
             $exception instanceof PasswordPolicyException => [Response::HTTP_UNPROCESSABLE_ENTITY, ErrorCode::WEAK_PASSWORD->value, ['violations' => $exception->getViolations()]],
             $exception instanceof PolicyBelowFloorException => [Response::HTTP_UNPROCESSABLE_ENTITY, ErrorCode::BELOW_FLOOR->value, ['conflicts' => $exception->getConflicts()]],
             $exception instanceof InvalidFactorIdentifierException => [Response::HTTP_UNPROCESSABLE_ENTITY, ErrorCode::INVALID_IDENTIFIER->value, []],
+            $exception instanceof DuplicateFactorException => [Response::HTTP_CONFLICT, ErrorCode::DUPLICATE_FACTOR->value, []],
             $exception instanceof LastFactorRemovalException => [Response::HTTP_CONFLICT, ErrorCode::LAST_FACTOR_REQUIRED->value, []],
             $exception instanceof AssistedRecoveryInvalidStatusException => [Response::HTTP_CONFLICT, ErrorCode::INVALID_STATUS->value, []],
             $exception instanceof AssistedRecoveryInvalidTokenException => [Response::HTTP_UNPROCESSABLE_ENTITY, ErrorCode::INVALID_TOKEN->value, []],
