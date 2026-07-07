@@ -68,14 +68,31 @@ return [
 
     /*
     |--------------------------------------------------------------------------
-    | Bloqueio de conta (TEC-04)
+    | Bloqueio de conta (TEC-04) — backoff escalonado, no molde do backoff de
+    | jobs do Laravel
     |--------------------------------------------------------------------------
+    | A cada `attempts_per_stage` falhas consecutivas, avança um estágio em
+    | `backoff_minutes` e bloqueia temporariamente por aquele tempo (sem ação
+    | administrativa — expira só). Ao esgotar o array (estágio seguinte não
+    | existe), a conta é bloqueada definitivamente — só desbloqueio
+    | administrativo (`AccountController::unlock`). Sem nenhuma tentativa nova
+    | por `reset_after_minutes`, o contador inteiro zera.
+    |
+    | Exemplo com attempts_per_stage=2 e backoff_minutes=[1, 3]:
+    |   tentativas 1-2  → nada (ainda dentro do 1º estágio)
+    |   tentativa  2    → bloqueia 1 min (estágio 0)
+    |   tentativas 3-4  → nada além do bloqueio já ativo
+    |   tentativa  4    → bloqueia 3 min (estágio 1)
+    |   tentativa  6    → estágio 2 não existe no array → bloqueio definitivo
     */
 
     'lockout' => [
-        'max_attempts' => env('AUTH_SECURITY_LOCKOUT_MAX_ATTEMPTS', 5),
-        'window_minutes' => env('AUTH_SECURITY_LOCKOUT_WINDOW_MINUTES', 10),
-        'unlock_strategy' => env('AUTH_SECURITY_LOCKOUT_UNLOCK_STRATEGY', 'admin_only'),
+        'attempts_per_stage' => env('AUTH_SECURITY_LOCKOUT_ATTEMPTS_PER_STAGE', 2),
+        // Lista separada por vírgula (ex.: "1,3,10"); vazio/ausente cai no default [1, 3].
+        'backoff_minutes' => env('AUTH_SECURITY_LOCKOUT_BACKOFF_MINUTES')
+            ? array_map('intval', explode(',', (string) env('AUTH_SECURITY_LOCKOUT_BACKOFF_MINUTES')))
+            : [1, 3],
+        'reset_after_minutes' => env('AUTH_SECURITY_LOCKOUT_RESET_AFTER_MINUTES', 1440),
     ],
 
     /*

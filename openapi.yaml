@@ -849,6 +849,7 @@ components:
         - MFA_REQUIRED
         - MFA_FACTOR_REGISTRATION_REQUIRED
         - ACCOUNT_LOCKED
+        - ACCOUNT_THROTTLED
         - PASSWORD_EXPIRED
         - INVALID_CODE
         - RESEND_RATE_LIMITED
@@ -876,7 +877,8 @@ components:
       description: |
         Campos extras variam por código: `remaining_attempts` (INVALID_CODE),
         `retry_after_seconds` (RESEND_RATE_LIMITED), `violations[]` (WEAK_PASSWORD),
-        `conflicts[]` (BELOW_FLOOR), `locked_at` (ACCOUNT_LOCKED).
+        `conflicts[]` (BELOW_FLOOR), `locked_at` (ACCOUNT_LOCKED),
+        `retry_after_seconds` (ACCOUNT_THROTTLED).
 
     ValidationErrorBody:
       type: object

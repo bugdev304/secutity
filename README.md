@@ -120,8 +120,9 @@ return [
     ],
 
     'lockout' => [
-        'max_attempts'   => 5,
-        'window_minutes' => 10,
+        'attempts_per_stage'  => 2,      // falhas consecutivas por estágio de backoff
+        'backoff_minutes'     => [1, 3], // bloqueio temporário por estágio; esgotou o array = bloqueio definitivo. Env-tuneável via lista separada por vírgula (AUTH_SECURITY_LOCKOUT_BACKOFF_MINUTES=1,3)
+        'reset_after_minutes' => 1440,   // sem tentativa nova por esse tempo, o contador inteiro zera
     ],
 
     'password_policy' => [
@@ -158,10 +159,14 @@ use Ae3\AuthSecurity\AuthSecurityServiceProvider;
 
 AuthSecurityServiceProvider::routes(
     prefix: 'v1',           // prefixo adicional — rotas ficam em /v1/mfa/*, /v1/organization-policies, etc.
-    middleware: [],         // middlewares extras além de ['api', "auth:{$guard}"]
-    guard: 'sanctum',       // guard de autenticação — 'api' para Passport, ou null pra não aplicar nenhum
+    middleware: [],         // middlewares extras, aplicados junto do grupo base
+    guard: 'sanctum',       // guard de autenticação — 'api' para Passport, 'web' para sessão, ou null pra não aplicar nenhum
 );
 ```
+
+O grupo de middleware base (`web` ou `api`) é derivado automaticamente do driver do guard
+(`config('auth.guards.{guard}.driver') === 'session' ? 'web' : 'api'`) — guards de sessão recebem
+`StartSession` corretamente, sem precisar informar isso manualmente.
 
 `prefix` e `guard` também podem ser fixados uma vez em `config('auth-security.routes')`, sem precisar
 passar em toda chamada.
@@ -221,14 +226,15 @@ class LoginController extends Controller
         $user = User::where('email', $request->input('email'))->firstOrFail();
 
         if (! Hash::check($request->input('password'), $user->password)) {
-            // Lança AccountLockedException se atingir o limiar configurado em
-            // config('auth-security.lockout') — deixe isso subir pro seu exception handler.
+            // Lança TemporarilyThrottledException (429, expira só) dentro de um estágio de
+            // backoff, ou AccountLockedException (423, só desbloqueio administrativo) ao
+            // esgotar todos os estágios — deixe as duas subirem pro seu exception handler.
             $recordFailedLogin->execute($user);
 
             return response()->json(['message' => 'Credenciais inválidas.'], 401);
         }
 
-        // Login bem-sucedido: zera o contador de tentativas falhas.
+        // Login bem-sucedido: zera o contador de tentativas falhas e qualquer throttle ativo.
         $lockoutService->resetAttempts($user);
 
         // ... emitir o token Sanctum/Passport normalmente
@@ -240,12 +246,17 @@ class LoginController extends Controller
 
 | Momento | O que chamar | Efeito |
 |---|---|---|
-| Senha incorreta | `RecordFailedLoginAction::execute($user)` | Incrementa o contador; bloqueia e lança `AccountLockedException` ao atingir `lockout.max_attempts` |
-| Login bem-sucedido | `LockoutService::resetAttempts($user)` | Zera o contador — sem isso, tentativas antigas continuam somando em janelas futuras |
+| Senha incorreta | `RecordFailedLoginAction::execute($user)` | Incrementa o contador; a cada `lockout.attempts_per_stage` falhas, avança um estágio em `lockout.backoff_minutes` (bloqueio temporário) — ao esgotar o array, bloqueia definitivamente (`AccountLockedException`) |
+| Login bem-sucedido | `LockoutService::resetAttempts($user)` | Zera o contador e qualquer bloqueio de estágio ativo — sem isso, tentativas antigas continuam somando até `lockout.reset_after_minutes` de inatividade |
 
-Sem a segunda chamada, o contador de tentativas falhas nunca é resetado por sucesso — só expira
-sozinho depois de `lockout.window_minutes`, o que pode gerar bloqueios inesperados mesmo após
-logins corretos no meio do caminho.
+**Backoff escalonado, no molde do backoff de jobs do Laravel** — com `attempts_per_stage: 2` e
+`backoff_minutes: [1, 3]`: a 2ª falha bloqueia 1 minuto, a 4ª bloqueia 3 minutos, a 6ª bloqueia
+definitivamente (array esgotado). Se o usuário parar de tentar, o contador só zera sozinho depois
+de `lockout.reset_after_minutes` — antes disso, as falhas continuam valendo de onde pararam, mesmo
+que o bloqueio temporário já tenha expirado.
+
+`GET /mfa/state` expõe `throttled_until` (ISO 8601, ou `null`) pro front mostrar contagem
+regressiva sem precisar reagir ao `429` da tentativa de login em si.
 
 ---
 
@@ -646,7 +657,8 @@ tipos TypeScript.
 |---|---|---|
 | `MFA_REQUIRED` | 403 | Usuário tem fator, mas sem `X-Mfa-Session-Token` válido |
 | `MFA_FACTOR_REGISTRATION_REQUIRED` | 403 | `UserState.must_register_factor = true` |
-| `ACCOUNT_LOCKED` | 423/403 | Conta bloqueada por tentativas |
+| `ACCOUNT_LOCKED` | 423/403 | Conta bloqueada definitivamente (esgotou os estágios de backoff) — só desbloqueio administrativo |
+| `ACCOUNT_THROTTLED` | 429 | Bloqueio temporário de um estágio de backoff — expira só, `retry_after_seconds` na resposta |
 | `PASSWORD_EXPIRED` | 403 | Senha expirou conforme `expiration_days` |
 | `INVALID_CODE` | 422 | Código OTP/TOTP/recovery errado ou expirado |
 | `RESEND_RATE_LIMITED` | 429 | Reenvio de OTP solicitado antes do intervalo/limite |
@@ -868,7 +880,8 @@ Todos os erros retornam `{ message, code, ...extras }`:
 | `INVALID_TOKEN` | 422 | Token de recuperação incorreto |
 | `TOKEN_EXPIRED` | 422 | Token de recuperação expirado |
 | `INVALIDATION_REQUIRED` | 409 | Códigos de recuperação ativos — enviar `confirm_invalidation: true` |
-| `ACCOUNT_LOCKED` | 403 | Conta bloqueada por tentativas |
+| `ACCOUNT_LOCKED` | 403 | Conta bloqueada definitivamente |
+| `ACCOUNT_THROTTLED` | 429 | Bloqueio temporário de estágio de backoff |
 | `PASSWORD_EXPIRED` | 403 | Senha expirada |
 | `MFA_REQUIRED` | 403 | Sessão MFA ausente ou expirada |
 | `MFA_FACTOR_REGISTRATION_REQUIRED` | 403 | Deve cadastrar novo fator |

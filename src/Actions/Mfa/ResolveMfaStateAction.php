@@ -26,7 +26,7 @@ class ResolveMfaStateAction
         private readonly ListUserFactorsAction $listUserFactors,
     ) {}
 
-    /** @return array{must_register_factor: bool, mfa_required: bool, mfa_satisfied: bool, password_expired: bool, account_locked: bool, factors: Collection, contacts: array} */
+    /** @return array{must_register_factor: bool, mfa_required: bool, mfa_satisfied: bool, password_expired: bool, account_locked: bool, throttled_until: ?string, factors: Collection, contacts: array} */
     public function execute(Authenticatable $user, ?string $mfaSessionToken, ?string $context = null): array
     {
         $mfaRequired = $this->mfaRequirementResolver->isRequiredFor($user, $context);
@@ -37,6 +37,7 @@ class ResolveMfaStateAction
             'mfa_satisfied' => $this->isMfaSatisfied($user, $mfaSessionToken),
             'password_expired' => $this->passwordPolicyService->isExpired($user),
             'account_locked' => $this->lockoutService->isLocked($user),
+            'throttled_until' => $this->lockoutService->throttledUntil($user)?->toIso8601String(),
             'factors' => $this->listUserFactors->execute($user),
             'contacts' => $user instanceof MfaContactProvider ? $user->mfaContacts() : [],
         ];

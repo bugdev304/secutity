@@ -17,6 +17,7 @@ class ErrorCodeTest extends TestCase
             'MFA_REQUIRED' => ['MFA_REQUIRED'],
             'MFA_FACTOR_REGISTRATION_REQUIRED' => ['MFA_FACTOR_REGISTRATION_REQUIRED'],
             'ACCOUNT_LOCKED' => ['ACCOUNT_LOCKED'],
+            'ACCOUNT_THROTTLED' => ['ACCOUNT_THROTTLED'],
             'PASSWORD_EXPIRED' => ['PASSWORD_EXPIRED'],
             'INVALID_CODE' => ['INVALID_CODE'],
             'RESEND_RATE_LIMITED' => ['RESEND_RATE_LIMITED'],

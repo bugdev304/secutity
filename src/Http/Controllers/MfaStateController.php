@@ -35,6 +35,7 @@ class MfaStateController extends Controller
                 'mfa_satisfied' => $state['mfa_satisfied'],
                 'password_expired' => $state['password_expired'],
                 'account_locked' => $state['account_locked'],
+                'throttled_until' => $state['throttled_until'],
                 'factors' => FactorResource::collection($state['factors']),
                 'contacts' => MfaContactResource::collection($state['contacts']),
             ],

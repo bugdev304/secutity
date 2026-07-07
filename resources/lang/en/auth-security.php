@@ -8,6 +8,7 @@ return [
     'mfa_factor_registration_required' => 'You must register a new MFA factor before accessing this resource.',
     'password_expired' => 'Your password has expired. Please change it to continue.',
     'account_locked' => 'Your account has been temporarily restricted. Please contact support.',
+    'account_throttled' => 'Too many failed attempts. Please wait before trying again.',
 
     'otp_expired' => 'The verification code has expired. Please request a new one.',
     'otp_invalid' => 'The verification code is invalid.',

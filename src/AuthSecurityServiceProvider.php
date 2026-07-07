@@ -31,6 +31,7 @@ use Ae3\AuthSecurity\Exceptions\OtpResendTooSoonException;
 use Ae3\AuthSecurity\Exceptions\PasswordPolicyException;
 use Ae3\AuthSecurity\Exceptions\PolicyBelowFloorException;
 use Ae3\AuthSecurity\Exceptions\RecoveryCodeInvalidException;
+use Ae3\AuthSecurity\Exceptions\TemporarilyThrottledException;
 use Ae3\AuthSecurity\Http\Middleware\EnsureAccountNotLocked;
 use Ae3\AuthSecurity\Http\Middleware\EnsureMfaCompleted;
 use Ae3\AuthSecurity\Http\Middleware\EnsureMustRegisterFactorCompleted;
@@ -256,6 +257,7 @@ class AuthSecurityServiceProvider extends ServiceProvider
     {
         return match (true) {
             $exception instanceof AccountLockedException => [Response::HTTP_LOCKED, ErrorCode::ACCOUNT_LOCKED->value, array_filter(['locked_at' => $exception->getLockedAt()?->toIso8601String()])],
+            $exception instanceof TemporarilyThrottledException => [Response::HTTP_TOO_MANY_REQUESTS, ErrorCode::ACCOUNT_THROTTLED->value, ['retry_after_seconds' => now()->diffInSeconds($exception->getRetryAfter())]],
             $exception instanceof OtpExpiredException => [Response::HTTP_UNPROCESSABLE_ENTITY, ErrorCode::INVALID_CODE->value, []],
             $exception instanceof OtpInvalidException => [Response::HTTP_UNPROCESSABLE_ENTITY, ErrorCode::INVALID_CODE->value, ['remaining_attempts' => $exception->getRemainingAttempts()]],
             $exception instanceof OtpResendLimitException => [Response::HTTP_TOO_MANY_REQUESTS, ErrorCode::RESEND_RATE_LIMITED->value, []],

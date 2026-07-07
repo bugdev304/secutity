@@ -76,6 +76,10 @@ Formato: [Keep a Changelog](https://keepachangelog.com/pt-BR/1.0.0/).
 
 - Comando `auth-security:purge-expired-data` e `DataRetentionService` — elimina fatores nunca confirmados e recuperações assistidas finalizadas conforme `config('auth-security.retention')`. Nada é apagado automaticamente; a app decide se/quando agendar (LGPD Art. 15/16 — término do tratamento e eliminação de dados pessoais)
 
+### Changed
+
+- **Bloqueio de conta (TEC-04) — backoff escalonado, substitui o limiar único anterior.** `config('auth-security.lockout')` trocou `max_attempts`/`window_minutes`/`unlock_strategy` (não usado) por `attempts_per_stage`, `backoff_minutes` (array, no molde do backoff de jobs do Laravel) e `reset_after_minutes`. A cada `attempts_per_stage` falhas, avança um estágio em `backoff_minutes` (bloqueio temporário, `TemporarilyThrottledException`/`ACCOUNT_THROTTLED`, 429, expira só); ao esgotar o array, bloqueio definitivo (`AccountLockedException`, inalterado). `LockoutService::throttledUntil()` novo; `GET /mfa/state` expõe `throttled_until`. **Breaking change** — apps que já publicaram `config/auth-security.php` precisam republicar/atualizar manualmente
+
 ### Fixed
 
 - `AuthSecurityServiceProvider::routes()` deriva o grupo de middleware stateful (`web`/`api`) do driver real do guard (`config('auth.guards.{guard}.driver')`) em vez de sempre fixar `api` — guards de sessão (ex.: `web`) agora recebem `StartSession` corretamente

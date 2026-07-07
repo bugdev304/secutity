@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Ae3\AuthSecurity\Tests\Services;
 
 use Ae3\AuthSecurity\Exceptions\AccountLockedException;
+use Ae3\AuthSecurity\Exceptions\TemporarilyThrottledException;
 use Ae3\AuthSecurity\Models\UserState;
 use Ae3\AuthSecurity\Services\LockoutService;
 use Ae3\AuthSecurity\Tests\DatabaseTestCase;
@@ -31,8 +32,10 @@ class LockoutServiceTest extends DatabaseTestCase
         $this->admin = Mockery::mock(Authenticatable::class);
         $this->admin->allows('getAuthIdentifier')->andReturn(99);
 
-        $this->app['config']->set('auth-security.lockout.max_attempts', 3);
-        $this->app['config']->set('auth-security.lockout.window_minutes', 10);
+        // attempts_per_stage=2, backoff=[1, 3]: falha 2 → 1min; falha 4 → 3min; falha 6 → definitivo
+        $this->app['config']->set('auth-security.lockout.attempts_per_stage', 2);
+        $this->app['config']->set('auth-security.lockout.backoff_minutes', [1, 3]);
+        $this->app['config']->set('auth-security.lockout.reset_after_minutes', 1440);
     }
 
     // ── isLocked ─────────────────────────────────────────────────────────────
@@ -56,41 +59,95 @@ class LockoutServiceTest extends DatabaseTestCase
         $this->assertTrue($this->service->isLocked($this->user));
     }
 
-    // ── recordFailedAttempt ──────────────────────────────────────────────────
+    // ── recordFailedAttempt — estágios de backoff ───────────────────────────
 
-    public function test_record_failed_attempt_does_not_lock_before_max_attempts(): void
+    public function test_first_failed_attempt_does_not_throttle(): void
     {
         $this->service->recordFailedAttempt($this->user); // 1
-        $this->service->recordFailedAttempt($this->user); // 2
 
         $this->assertFalse($this->service->isLocked($this->user));
+        $this->assertNull($this->service->throttledUntil($this->user));
     }
 
-    public function test_record_failed_attempt_locks_on_reaching_max_attempts(): void
+    public function test_reaching_first_stage_throttles_temporarily(): void
     {
-        $this->expectException(AccountLockedException::class);
-
         $this->service->recordFailedAttempt($this->user); // 1
-        $this->service->recordFailedAttempt($this->user); // 2
-        $this->service->recordFailedAttempt($this->user); // 3 → bloqueia
 
-        $this->assertTrue($this->service->isLocked($this->user));
+        $this->expectException(TemporarilyThrottledException::class);
+        $this->service->recordFailedAttempt($this->user); // 2 → estágio 0 (1 min)
     }
 
-    public function test_lock_throws_account_locked_exception_with_locked_at(): void
+    public function test_first_stage_throttle_sets_retry_after_within_configured_minutes(): void
     {
-        $this->service->recordFailedAttempt($this->user);
-        $this->service->recordFailedAttempt($this->user);
+        $this->service->recordFailedAttempt($this->user); // 1
 
         try {
-            $this->service->recordFailedAttempt($this->user);
-            $this->fail('AccountLockedException expected.');
-        } catch (AccountLockedException $exception) {
-            $this->assertNotNull($exception->getLockedAt());
+            $this->service->recordFailedAttempt($this->user); // 2
+            $this->fail('TemporarilyThrottledException expected.');
+        } catch (TemporarilyThrottledException $exception) {
+            $this->assertTrue($exception->getRetryAfter()->between(now(), now()->addMinutes(1)->addSecond()));
+        }
+
+        $this->assertFalse($this->service->isLocked($this->user));
+        $this->assertNotNull($this->service->throttledUntil($this->user));
+    }
+
+    public function test_attempt_during_active_throttle_rethrows_same_retry_after(): void
+    {
+        $this->service->recordFailedAttempt($this->user); // 1
+
+        try {
+            $this->service->recordFailedAttempt($this->user); // 2 → throttled
+        } catch (TemporarilyThrottledException) {
+        }
+
+        $firstRetryAfter = $this->service->throttledUntil($this->user);
+
+        try {
+            $this->service->recordFailedAttempt($this->user); // ainda dentro do bloqueio
+            $this->fail('TemporarilyThrottledException expected.');
+        } catch (TemporarilyThrottledException $exception) {
+            $this->assertEquals($firstRetryAfter->toIso8601String(), $exception->getRetryAfter()->toIso8601String());
         }
     }
 
-    public function test_record_failed_attempt_throws_immediately_when_already_locked(): void
+    public function test_reaching_second_stage_throttles_with_longer_backoff(): void
+    {
+        $this->service->recordFailedAttempt($this->user); // 1
+        try {
+            $this->service->recordFailedAttempt($this->user); // 2 → estágio 0 (1 min)
+        } catch (TemporarilyThrottledException) {
+        }
+
+        // Estágio 0 (1 min) expira; contador de tentativas continua intacto
+        $this->travel(61)->seconds();
+
+        $this->service->recordFailedAttempt($this->user); // 3
+
+        try {
+            $this->service->recordFailedAttempt($this->user); // 4 → estágio 1 (3 min)
+            $this->fail('TemporarilyThrottledException expected.');
+        } catch (TemporarilyThrottledException $exception) {
+            $this->assertTrue($exception->getRetryAfter()->between(now()->addMinutes(2), now()->addMinutes(3)->addSecond()));
+        }
+    }
+
+    public function test_exhausting_backoff_stages_locks_account_permanently(): void
+    {
+        $this->service->recordFailedAttempt($this->user); // 1
+        $this->tryAndSwallow(fn () => $this->service->recordFailedAttempt($this->user)); // 2 → estágio 0 (1 min)
+        $this->travel(61)->seconds();
+        $this->service->recordFailedAttempt($this->user); // 3
+        $this->tryAndSwallow(fn () => $this->service->recordFailedAttempt($this->user)); // 4 → estágio 1 (3 min)
+        $this->travel(3)->minutes();
+        $this->travel(1)->seconds();
+        $this->service->recordFailedAttempt($this->user); // 5
+
+        $this->expectException(AccountLockedException::class);
+        $this->service->recordFailedAttempt($this->user); // 6 → estágio 2 não existe → bloqueio definitivo
+    }
+
+    public function test_locked_account_throws_immediately_regardless_of_attempt_count(): void
     {
         UserState::create(['user_id' => 1, 'account_locked_at' => now()]);
 
@@ -113,18 +170,18 @@ class LockoutServiceTest extends DatabaseTestCase
 
     // ── resetAttempts ────────────────────────────────────────────────────────
 
-    public function test_reset_attempts_allows_fresh_window_after_reset(): void
+    public function test_reset_attempts_clears_both_counter_and_active_throttle(): void
     {
         $this->service->recordFailedAttempt($this->user); // 1
-        $this->service->recordFailedAttempt($this->user); // 2
+        $this->tryAndSwallow(fn () => $this->service->recordFailedAttempt($this->user)); // 2 → throttled
 
         $this->service->resetAttempts($this->user);
 
-        // Após reset, 2 tentativas não bloqueiam (max = 3)
-        $this->service->recordFailedAttempt($this->user);
-        $this->service->recordFailedAttempt($this->user);
+        $this->assertNull($this->service->throttledUntil($this->user));
 
-        $this->assertFalse($this->service->isLocked($this->user));
+        // Após reset, precisa de 2 novas falhas pra voltar ao 1º estágio
+        $this->service->recordFailedAttempt($this->user);
+        $this->assertNull($this->service->throttledUntil($this->user));
     }
 
     // ── lock ─────────────────────────────────────────────────────────────────
@@ -169,21 +226,24 @@ class LockoutServiceTest extends DatabaseTestCase
         $this->assertNotNull($state->account_unlocked_at);
     }
 
-    public function test_unlock_resets_attempt_counter(): void
+    public function test_unlock_resets_attempt_counter_and_throttle(): void
     {
         UserState::create(['user_id' => 1, 'account_locked_at' => now()]);
 
-        // Simula tentativas acumuladas antes do bloqueio
-        $this->service->recordFailedAttempt(Mockery::mock(Authenticatable::class, [
-            'getAuthIdentifier' => 2,
-        ])); // outro usuário, não interfere
-
         $this->service->unlock($this->user, $this->admin);
 
-        // Após desbloqueio, 2 tentativas não devem bloquear (max = 3)
-        $this->service->recordFailedAttempt($this->user);
+        // Após desbloqueio, precisa de 2 novas falhas pra voltar ao 1º estágio
         $this->service->recordFailedAttempt($this->user);
 
         $this->assertFalse($this->service->isLocked($this->user));
+        $this->assertNull($this->service->throttledUntil($this->user));
+    }
+
+    private function tryAndSwallow(callable $callback): void
+    {
+        try {
+            $callback();
+        } catch (TemporarilyThrottledException) {
+        }
     }
 }

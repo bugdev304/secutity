@@ -8,6 +8,7 @@ return [
     'mfa_factor_registration_required' => 'Você deve cadastrar um novo fator de verificação antes de acessar este recurso.',
     'password_expired' => 'Sua senha expirou. Por favor, redefina-a para continuar.',
     'account_locked' => 'Sua conta foi temporariamente restrita. Por favor, entre em contato com o suporte.',
+    'account_throttled' => 'Muitas tentativas falhas. Por favor, aguarde antes de tentar novamente.',
 
     'otp_expired' => 'O código de verificação expirou. Solicite um novo código.',
     'otp_invalid' => 'O código de verificação é inválido.',
